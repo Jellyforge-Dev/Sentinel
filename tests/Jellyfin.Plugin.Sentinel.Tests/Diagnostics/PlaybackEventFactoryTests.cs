@@ -63,6 +63,95 @@ public class PlaybackEventFactoryTests
     }
 
     [Fact]
+    public void FromEventArgs_ForcesTranscodePlayMethod_WhenTranscodeReasonsWereCapturedButPlayMethodContradictsThem()
+    {
+        // Regression test for a bug confirmed on a real server (v0.1.3.0): a session with a
+        // verified, active ffmpeg transcode (video re-encoded to AV1, audio downmixed to 2
+        // channels — confirmed via the server's own transcode log) still produced a
+        // PlaybackEvent row with PlayMethod = DirectPlay next to a correctly non-zero
+        // TranscodeReasons (AudioChannelsNotSupported) in the very same row. The snapshot below
+        // reproduces that exact contradiction: real transcode reasons/codec, but a PlayMethod
+        // that says DirectPlay (most likely a later progress tick, during a mid-playback seek or
+        // audio-track change, reporting a value the cache's null-only merge protection didn't
+        // guard against). DirectPlay specifically means no ffmpeg job ran at all, so it cannot
+        // legitimately coexist with captured transcode reasons — unlike DirectStream, see the
+        // sibling test below.
+        var sessionManager = new Mock<ISessionManager>();
+        var session = new SessionInfo(sessionManager.Object, NullLogger.Instance)
+        {
+            Id = "session-contradiction",
+            Client = "Jellyfin iOS",
+            DeviceName = "iPhone",
+            PlayState = new PlayerStateInfo(),
+            TranscodingInfo = null
+        };
+
+        var args = new PlaybackStopEventArgs
+        {
+            Session = session,
+            Item = new Movie { Id = Guid.NewGuid() }
+        };
+
+        var snapshot = new PlaybackProgressSnapshot
+        {
+            PlayMethod = PlayMethod.DirectPlay,
+            TranscodeReasons = TranscodeReason.AudioChannelsNotSupported,
+            VideoCodec = "av1",
+            AudioCodec = null,
+            CapturedAtTimestamp = TimeProvider.System.GetTimestamp()
+        };
+
+        var result = PlaybackEventFactory.FromEventArgs(args, snapshot);
+
+        Assert.NotNull(result);
+        Assert.Equal(PlayMethod.Transcode, result!.PlayMethod);
+        Assert.True(result.TranscodeReasons.HasFlag(TranscodeReason.AudioChannelsNotSupported));
+        Assert.Equal("av1", result.VideoCodec);
+    }
+
+    [Fact]
+    public void FromEventArgs_DoesNotForceTranscode_WhenPlayMethodIsDirectStream()
+    {
+        // A remux (container changed, audio/video streams copied without re-encoding) is
+        // reported by Jellyfin as PlayMethod = DirectStream, but it still runs an ffmpeg job and
+        // still records the reason the container needed changing (e.g. ContainerNotSupported) on
+        // that same session — unlike DirectPlay (see the sibling test above), this is a
+        // legitimate combination, not a contradiction. Forcing PlayMethod to Transcode here would
+        // misclassify every remux as a full transcode and fire CONTAINER_UNSUPPORTED (Confirmed
+        // confidence) for sessions that never re-encoded anything.
+        var sessionManager = new Mock<ISessionManager>();
+        var session = new SessionInfo(sessionManager.Object, NullLogger.Instance)
+        {
+            Id = "session-remux",
+            Client = "Jellyfin Web",
+            DeviceName = "Firefox",
+            PlayState = new PlayerStateInfo(),
+            TranscodingInfo = null
+        };
+
+        var args = new PlaybackStopEventArgs
+        {
+            Session = session,
+            Item = new Movie { Id = Guid.NewGuid() }
+        };
+
+        var snapshot = new PlaybackProgressSnapshot
+        {
+            PlayMethod = PlayMethod.DirectStream,
+            TranscodeReasons = TranscodeReason.ContainerNotSupported,
+            VideoCodec = "h264",
+            AudioCodec = "aac",
+            CapturedAtTimestamp = TimeProvider.System.GetTimestamp()
+        };
+
+        var result = PlaybackEventFactory.FromEventArgs(args, snapshot);
+
+        Assert.NotNull(result);
+        Assert.Equal(PlayMethod.DirectStream, result!.PlayMethod);
+        Assert.True(result.TranscodeReasons.HasFlag(TranscodeReason.ContainerNotSupported));
+    }
+
+    [Fact]
     public void FromEventArgs_FallsBackToSessionData_WhenNoSnapshotWasCaptured()
     {
         // This is a defensive-safety test, not a recovery-scenario test: in real Jellyfin, a
