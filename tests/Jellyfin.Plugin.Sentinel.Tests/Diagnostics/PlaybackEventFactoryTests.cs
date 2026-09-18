@@ -73,10 +73,9 @@ public class PlaybackEventFactoryTests
         // reproduces that exact contradiction: real transcode reasons/codec, but a PlayMethod
         // that says DirectPlay (most likely a later progress tick, during a mid-playback seek or
         // audio-track change, reporting a value the cache's null-only merge protection didn't
-        // guard against). Jellyfin only ever populates transcode-reason data while actively
-        // transcoding, so a non-default TranscodeReasons must win over a contradicting
-        // PlayMethod - otherwise every rule in CoreTranscodeRules (which all gate on
-        // PlayMethod == Transcode) silently produces zero diagnoses despite having the evidence.
+        // guard against). DirectPlay specifically means no ffmpeg job ran at all, so it cannot
+        // legitimately coexist with captured transcode reasons — unlike DirectStream, see the
+        // sibling test below.
         var sessionManager = new Mock<ISessionManager>();
         var session = new SessionInfo(sessionManager.Object, NullLogger.Instance)
         {
@@ -108,6 +107,48 @@ public class PlaybackEventFactoryTests
         Assert.Equal(PlayMethod.Transcode, result!.PlayMethod);
         Assert.True(result.TranscodeReasons.HasFlag(TranscodeReason.AudioChannelsNotSupported));
         Assert.Equal("av1", result.VideoCodec);
+    }
+
+    [Fact]
+    public void FromEventArgs_DoesNotForceTranscode_WhenPlayMethodIsDirectStream()
+    {
+        // A remux (container changed, audio/video streams copied without re-encoding) is
+        // reported by Jellyfin as PlayMethod = DirectStream, but it still runs an ffmpeg job and
+        // still records the reason the container needed changing (e.g. ContainerNotSupported) on
+        // that same session — unlike DirectPlay (see the sibling test above), this is a
+        // legitimate combination, not a contradiction. Forcing PlayMethod to Transcode here would
+        // misclassify every remux as a full transcode and fire CONTAINER_UNSUPPORTED (Confirmed
+        // confidence) for sessions that never re-encoded anything.
+        var sessionManager = new Mock<ISessionManager>();
+        var session = new SessionInfo(sessionManager.Object, NullLogger.Instance)
+        {
+            Id = "session-remux",
+            Client = "Jellyfin Web",
+            DeviceName = "Firefox",
+            PlayState = new PlayerStateInfo(),
+            TranscodingInfo = null
+        };
+
+        var args = new PlaybackStopEventArgs
+        {
+            Session = session,
+            Item = new Movie { Id = Guid.NewGuid() }
+        };
+
+        var snapshot = new PlaybackProgressSnapshot
+        {
+            PlayMethod = PlayMethod.DirectStream,
+            TranscodeReasons = TranscodeReason.ContainerNotSupported,
+            VideoCodec = "h264",
+            AudioCodec = "aac",
+            CapturedAtTimestamp = TimeProvider.System.GetTimestamp()
+        };
+
+        var result = PlaybackEventFactory.FromEventArgs(args, snapshot);
+
+        Assert.NotNull(result);
+        Assert.Equal(PlayMethod.DirectStream, result!.PlayMethod);
+        Assert.True(result.TranscodeReasons.HasFlag(TranscodeReason.ContainerNotSupported));
     }
 
     [Fact]
