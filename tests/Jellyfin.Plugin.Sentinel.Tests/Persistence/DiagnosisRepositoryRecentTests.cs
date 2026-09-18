@@ -3,6 +3,7 @@ using System.IO;
 using Jellyfin.Plugin.Sentinel.Domain;
 using Jellyfin.Plugin.Sentinel.Persistence;
 using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace Jellyfin.Plugin.Sentinel.Tests.Persistence;
@@ -19,30 +20,70 @@ public class DiagnosisRepositoryRecentTests : IDisposable
         _databasePath = Path.Combine(Path.GetTempPath(), $"sentinel-recent-test-{Guid.NewGuid()}.db");
         _database = new SentinelDatabase(_databasePath);
         _playbackEventRepository = new PlaybackEventRepository(_database);
-        _diagnosisRepository = new DiagnosisRepository(_database);
+        _diagnosisRepository = new DiagnosisRepository(_database, NullLogger<DiagnosisRepository>.Instance);
     }
 
     [Fact]
-    public void GetRecent_ReturnsDiagnosesJoinedWithPlaybackEventContext_MostRecentFirst()
+    public void GetRecent_ProjectsEveryColumn_JoinedWithTheCorrectPlaybackEvent_MostRecentFirst()
     {
-        // Insertion order (not wall-clock timing) is what the assertions rely on: the repository's
-        // query breaks ties on Id DESC specifically so two diagnoses created within the same
-        // DateTime.UtcNow tick (a real possibility on Windows, where timer resolution can exceed
-        // the gap between two fast inserts) still sort deterministically by insertion order.
-        var olderEventId = InsertPlaybackEvent("session-old", "Fire TV", "Living Room");
+        // Insertion order (not wall-clock timing) is what the ordering assertions rely on: the
+        // repository's query breaks ties on Id DESC specifically so two diagnoses created within
+        // the same DateTime.UtcNow tick (a real possibility on Windows, where timer resolution can
+        // exceed the gap between two fast inserts) still sort deterministically by insertion order.
+        var olderItemId = Guid.NewGuid().ToString();
+        var olderEventId = InsertPlaybackEvent("session-old", "Fire TV", "Living Room", olderItemId);
         _diagnosisRepository.Insert(olderEventId, BuildDiagnosis("OLDER_CODE"));
 
-        var newerEventId = InsertPlaybackEvent("session-new", "Chromecast", "Kitchen");
+        var newerItemId = Guid.NewGuid().ToString();
+        var newerEventId = InsertPlaybackEvent("session-new", "Chromecast", "Kitchen", newerItemId);
         _diagnosisRepository.Insert(newerEventId, BuildDiagnosis("NEWER_CODE"));
 
         var recent = _diagnosisRepository.GetRecent(50);
 
         Assert.Equal(2, recent.Count);
-        Assert.Equal("NEWER_CODE", recent[0].Code);
-        Assert.Equal("Chromecast", recent[0].Client);
-        Assert.Equal("Kitchen", recent[0].DeviceName);
-        Assert.Equal("OLDER_CODE", recent[1].Code);
-        Assert.Equal("Fire TV", recent[1].Client);
+
+        // Every projected column is asserted here, not just a convenient subset — a future edit
+        // that swaps two columns in the SELECT list (e.g. Explanation/Recommendation, or
+        // ItemId/Client) must fail one of these, not silently pass.
+        var newer = recent[0];
+        Assert.True(newer.Id > 0);
+        Assert.Equal("NEWER_CODE", newer.Code);
+        Assert.Equal(Confidence.Confirmed, newer.Confidence);
+        Assert.Equal(new[] { "evidence" }, newer.Evidence);
+        Assert.Equal("explanation", newer.Explanation);
+        Assert.Equal("recommendation", newer.Recommendation);
+        Assert.Equal(newerItemId, newer.ItemId);
+        Assert.Equal("Chromecast", newer.Client);
+        Assert.Equal("Kitchen", newer.DeviceName);
+        Assert.Equal("Transcode", newer.PlayMethod);
+
+        var older = recent[1];
+        Assert.Equal("OLDER_CODE", older.Code);
+        Assert.Equal(olderItemId, older.ItemId);
+        Assert.Equal("Fire TV", older.Client);
+        Assert.True(older.Id < newer.Id);
+    }
+
+    [Fact]
+    public void GetRecent_OrdersByCreatedAtUtc_NotJustInsertionOrder()
+    {
+        // Insert() always stamps DateTime.UtcNow server-side, so the only way to construct a case
+        // where CreatedAtUtc and Id disagree (the exact case that proves CreatedAtUtc, not Id, is
+        // the primary sort key) is to manipulate the timestamp directly after insertion.
+        var firstEventId = InsertPlaybackEvent("session-a", "Fire TV", "Living Room");
+        _diagnosisRepository.Insert(firstEventId, BuildDiagnosis("INSERTED_FIRST"));
+
+        var secondEventId = InsertPlaybackEvent("session-b", "Fire TV", "Living Room");
+        _diagnosisRepository.Insert(secondEventId, BuildDiagnosis("INSERTED_SECOND"));
+
+        // Back-date the second (higher-Id) diagnosis so it is now the OLDER of the two by
+        // CreatedAtUtc, despite having the higher Id.
+        SetDiagnosisCreatedAtUtc("INSERTED_SECOND", DateTime.UtcNow.AddDays(-1));
+
+        var recent = _diagnosisRepository.GetRecent(50);
+
+        Assert.Equal("INSERTED_FIRST", recent[0].Code);
+        Assert.Equal("INSERTED_SECOND", recent[1].Code);
     }
 
     [Fact]
@@ -78,12 +119,12 @@ public class DiagnosisRepositoryRecentTests : IDisposable
         Assert.Equal(new[] { "fact one", "fact two" }, recent[0].Evidence);
     }
 
-    private long InsertPlaybackEvent(string sessionId, string client, string deviceName)
+    private long InsertPlaybackEvent(string sessionId, string client, string deviceName, string? itemId = null)
     {
         var playbackEvent = new PlaybackEvent
         {
             SessionId = sessionId,
-            ItemId = Guid.NewGuid().ToString(),
+            ItemId = itemId ?? Guid.NewGuid().ToString(),
             Client = client,
             DeviceName = deviceName,
             PlayMethod = MediaBrowser.Model.Session.PlayMethod.Transcode,
@@ -92,6 +133,16 @@ public class DiagnosisRepositoryRecentTests : IDisposable
         };
 
         return _playbackEventRepository.Insert(playbackEvent);
+    }
+
+    private void SetDiagnosisCreatedAtUtc(string code, DateTime createdAtUtc)
+    {
+        using var connection = _database.OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = "UPDATE Diagnosis SET CreatedAtUtc = $createdAtUtc WHERE Code = $code;";
+        command.Parameters.AddWithValue("$createdAtUtc", createdAtUtc.ToString("O"));
+        command.Parameters.AddWithValue("$code", code);
+        command.ExecuteNonQuery();
     }
 
     private static Diagnosis BuildDiagnosis(string code) => new()

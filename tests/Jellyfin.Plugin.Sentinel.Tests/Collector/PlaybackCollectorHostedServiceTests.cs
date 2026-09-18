@@ -32,7 +32,7 @@ public class PlaybackCollectorHostedServiceTests : IDisposable
     {
         var sessionManagerMock = new Mock<ISessionManager>();
         var playbackEventRepository = new PlaybackEventRepository(_database);
-        var diagnosisRepository = new DiagnosisRepository(_database);
+        var diagnosisRepository = new DiagnosisRepository(_database, NullLogger<DiagnosisRepository>.Instance);
         var ruleEngine = new RuleEngine(CoreTranscodeRules.All);
 
         var service = new PlaybackCollectorHostedService(
