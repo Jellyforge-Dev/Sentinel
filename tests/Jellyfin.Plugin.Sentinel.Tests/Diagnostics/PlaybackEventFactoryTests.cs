@@ -1,6 +1,6 @@
 using System;
-using Jellyfin.Plugin.Sentinel.Collector;
 using Jellyfin.Plugin.Sentinel.Diagnostics;
+using Jellyfin.Plugin.Sentinel.Domain;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Session;
@@ -45,7 +45,8 @@ public class PlaybackEventFactoryTests
             PlayMethod = PlayMethod.Transcode,
             TranscodeReasons = TranscodeReason.SubtitleCodecNotSupported | TranscodeReason.VideoCodecNotSupported,
             VideoCodec = "hevc",
-            AudioCodec = "eac3"
+            AudioCodec = "eac3",
+            CapturedAtUtc = DateTime.UtcNow
         };
 
         var result = PlaybackEventFactory.FromEventArgs(args, snapshot);
@@ -64,8 +65,13 @@ public class PlaybackEventFactoryTests
     [Fact]
     public void FromEventArgs_FallsBackToSessionData_WhenNoSnapshotWasCaptured()
     {
-        // Defensive fallback for the rare case a session stops before any PlaybackProgress ever
-        // fired for it (e.g. an immediate playback failure) — degraded but not crashed.
+        // This is a defensive-safety test, not a recovery-scenario test: in real Jellyfin, a
+        // session with no snapshot has ALSO had its PlayState/TranscodingInfo cleared by the
+        // same RemoveNowPlayingItem call the snapshot mechanism exists to work around (see
+        // PlaybackProgressSnapshot's remarks), so the session fields below (deliberately left
+        // live, unlike that real scenario) are not what a production handler would actually see.
+        // This only proves the null-coalescing fallback doesn't crash and reads the fields it's
+        // supposed to when they ARE present — not that the fallback recovers useful data live.
         var sessionManager = new Mock<ISessionManager>();
         var session = new SessionInfo(sessionManager.Object, NullLogger.Instance)
         {

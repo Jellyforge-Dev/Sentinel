@@ -120,6 +120,14 @@ please open an issue with the relevant lines from Jellyfin's server log.
   transcode reason per session while it's still live, and uses that cached snapshot once the
   session stops. Confirmed by a test that reproduces the exact real-world sequence and fails
   without the fix; **not yet re-confirmed against a real server for this specific fix.**
+- **A `TRANSCODE_REASON_MISSING` diagnosis after this fix is not, by itself, proof the fix is
+  working.** This fix makes that rule reachable for the first time — before it, `PlayMethod` was
+  always empty, so the rule (which requires `PlayMethod == Transcode`) could never match. Some
+  clients omit the play method from their own progress reports, and Jellyfin's field for it
+  defaults to the same value as `Transcode` when omitted, so a client with an incomplete progress
+  report can trigger this diagnosis without ever actually transcoding. A `VIDEO_CODEC_UNSUPPORTED`
+  (or similar) diagnosis with a real, non-empty `TranscodeReasons` value is the actual signal that
+  the fix is working end to end.
 - **No dashboard, no notifications.** You have to read the SQLite database directly (see above).
 - **Only a narrow set of diagnoses so far.** Sentinel currently recognizes unsupported
   video/audio codecs, unsupported containers, unsupported secondary audio tracks, too many

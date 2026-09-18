@@ -1,5 +1,4 @@
 using System;
-using Jellyfin.Plugin.Sentinel.Collector;
 using Jellyfin.Plugin.Sentinel.Domain;
 using MediaBrowser.Controller.Library;
 
@@ -17,11 +16,14 @@ public static class PlaybackEventFactory
     /// <param name="args">The stopped-playback event args from Jellyfin.</param>
     /// <param name="progressSnapshot">
     /// The most recent play-method/transcode-reason data captured from a <c>PlaybackProgress</c>
-    /// event for this same session, or null if none was captured. Required because Jellyfin
+    /// event for this same play session, or null if none was captured. Required because Jellyfin
     /// always clears <c>Session.PlayState</c> and <c>Session.TranscodingInfo</c> before firing
     /// <c>PlaybackStopped</c> — see <see cref="PlaybackProgressSnapshot"/>'s remarks for the
-    /// verified source-level reason. When null, this falls back to reading the (normally empty)
-    /// session fields directly, which is a degraded-but-safe result, not a crash.
+    /// verified source-level reason. When null, this falls back to reading the session fields
+    /// directly; in real Jellyfin those are guaranteed empty for the same reason the snapshot
+    /// exists at all, so this path is deliberately degraded-but-safe rather than a recovery
+    /// mechanism — it exists so a missing snapshot never crashes the handler, not because it is
+    /// expected to produce useful data.
     /// </param>
     /// <returns>The normalized playback event, or null if the event lacks a session or item.</returns>
     /// <remarks>
