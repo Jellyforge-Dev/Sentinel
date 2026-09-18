@@ -21,12 +21,16 @@
          needs a compile-time type from this assembly to register a custom native-library
          resolver — see the comment in Plugin.cs for why that resolver is required at all. -->
     <PackageReference Include="SQLitePCLRaw.provider.e_sqlite3" Version="2.1.12" />
-    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.11">
-      <ExcludeAssets>runtime</ExcludeAssets>
-    </PackageReference>
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.11">
-      <ExcludeAssets>runtime</ExcludeAssets>
-    </PackageReference>
+    <!-- Gives SentinelController compile-time access to ControllerBase/[ApiController]/[Authorize]
+         without bundling any ASP.NET Core assemblies — FrameworkReference is never copied into the
+         publish output, since Jellyfin's own host always provides this shared framework at runtime.
+         Verified against the official jellyfin-plugin-playbackreporting's .csproj, which does the
+         same thing for the same reason (it ships its own API controller). This also transitively
+         provides Microsoft.Extensions.Hosting.Abstractions and
+         Microsoft.Extensions.DependencyInjection.Abstractions (part of the ASP.NET Core shared
+         framework), so the separate PackageReferences for those two — needed before this was
+         added — would now trigger NuGet's NU1510 ("already available, remove the reference"). -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
   <ItemGroup>

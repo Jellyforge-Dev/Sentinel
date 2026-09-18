@@ -8,9 +8,95 @@
         <div data-role="content">
             <div class="content-primary">
                 <h1>Jellyfin Sentinel</h1>
-                <p>Sentinel is running and observing playback sessions. The incident dashboard is not implemented yet — this page will be replaced by the Dashboard plan.</p>
+                <p>Recent playback diagnoses Sentinel has found. Click a row to see the evidence behind it. This is a minimal, read-only list — the full incident dashboard (severity, acknowledge/resolve, notifications) is planned but not yet built.</p>
+                <table class="detailTable" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Media</th>
+                            <th>Client / Device</th>
+                            <th>Confidence</th>
+                            <th>Explanation</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sentinelDiagnosesBody">
+                        <tr><td colspan="5">Loading…</td></tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
+    <script type="text/javascript">
+        (function () {
+            function escapeHtml(value) {
+                var div = document.createElement('div');
+                div.textContent = value === null || value === undefined ? '' : String(value);
+                return div.innerHTML;
+            }
+
+            function buildEvidenceList(evidence) {
+                if (!evidence || evidence.length === 0) {
+                    return '<li>(no evidence recorded)</li>';
+                }
+
+                return evidence.map(function (item) {
+                    return '<li>' + escapeHtml(item) + '</li>';
+                }).join('');
+            }
+
+            function appendDiagnosisRows(tbody, diagnosis) {
+                var summaryRow = document.createElement('tr');
+                summaryRow.style.cursor = 'pointer';
+                summaryRow.innerHTML =
+                    '<td>' + escapeHtml(new Date(diagnosis.createdAtUtc).toLocaleString()) + '</td>' +
+                    '<td>' + escapeHtml(diagnosis.mediaName) + '</td>' +
+                    '<td>' + escapeHtml(diagnosis.client) + ' / ' + escapeHtml(diagnosis.deviceName) + '</td>' +
+                    '<td>' + escapeHtml(diagnosis.confidence) + '</td>' +
+                    '<td>' + escapeHtml(diagnosis.explanation) + '</td>';
+
+                var detailRow = document.createElement('tr');
+                var detailCell = document.createElement('td');
+                detailCell.colSpan = 5;
+                detailCell.style.display = 'none';
+                detailCell.style.paddingLeft = '2em';
+                detailCell.innerHTML =
+                    '<strong>Evidence:</strong><ul>' + buildEvidenceList(diagnosis.evidence) + '</ul>' +
+                    '<strong>Recommendation:</strong> ' + escapeHtml(diagnosis.recommendation) +
+                    '<div><em>Code: ' + escapeHtml(diagnosis.code) + '</em></div>';
+                detailRow.appendChild(detailCell);
+
+                summaryRow.addEventListener('click', function () {
+                    detailCell.style.display = detailCell.style.display === 'none' ? 'block' : 'none';
+                });
+
+                tbody.appendChild(summaryRow);
+                tbody.appendChild(detailRow);
+            }
+
+            function loadDiagnoses() {
+                var tbody = document.querySelector('#sentinelDiagnosesBody');
+                var url = ApiClient.getUrl('Sentinel/diagnoses');
+
+                ApiClient.ajax({ type: 'GET', url: url, dataType: 'json' }).then(function (diagnoses) {
+                    tbody.innerHTML = '';
+
+                    if (!diagnoses || diagnoses.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="5">No diagnoses yet — Sentinel only records a diagnosis when a session actually transcoded for a reason its current rules recognize.</td></tr>';
+                        return;
+                    }
+
+                    diagnoses.forEach(function (diagnosis) {
+                        appendDiagnosisRows(tbody, diagnosis);
+                    });
+                }).catch(function () {
+                    tbody.innerHTML = '<tr><td colspan="5">Failed to load diagnoses. Check Jellyfin\'s server log for details.</td></tr>';
+                });
+            }
+
+            document.querySelector('#SentinelConfigPage').addEventListener('pageshow', function () {
+                loadDiagnoses();
+            });
+        })();
+    </script>
 </body>
 </html>

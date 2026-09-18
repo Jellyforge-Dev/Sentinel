@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text.Json;
 using Jellyfin.Plugin.Sentinel.Domain;
 
@@ -69,6 +70,51 @@ public sealed class DiagnosisRepository
         while (reader.Read())
         {
             results.Add((reader.GetString(0), reader.GetString(1)));
+        }
+
+        return results;
+    }
+
+    /// <summary>
+    /// Retrieves the most recent diagnoses, joined with their originating playback event's
+    /// context, most recent first. Intended for the plugin's own dashboard display — not a
+    /// general-purpose query, hence the fixed ordering and no filtering.
+    /// </summary>
+    /// <param name="limit">The maximum number of diagnoses to return.</param>
+    /// <returns>A read-only list of diagnosis summaries, most recent first.</returns>
+    public IReadOnlyList<DiagnosisSummary> GetRecent(int limit)
+    {
+        using var connection = _database.OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            SELECT d.Id, d.Code, d.Confidence, d.EvidenceJson, d.Explanation, d.Recommendation, d.CreatedAtUtc,
+                   p.ItemId, p.Client, p.DeviceName, p.PlayMethod
+            FROM Diagnosis d
+            JOIN PlaybackEvent p ON p.Id = d.PlaybackEventId
+            ORDER BY d.CreatedAtUtc DESC, d.Id DESC
+            LIMIT $limit;
+            """;
+        command.Parameters.AddWithValue("$limit", limit);
+
+        var results = new List<DiagnosisSummary>();
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            results.Add(new DiagnosisSummary
+            {
+                Id = reader.GetInt64(0),
+                Code = reader.GetString(1),
+                Confidence = Enum.Parse<Confidence>(reader.GetString(2)),
+                Evidence = JsonSerializer.Deserialize<List<string>>(reader.GetString(3)) ?? new List<string>(),
+                Explanation = reader.GetString(4),
+                Recommendation = reader.GetString(5),
+                CreatedAtUtc = DateTime.Parse(reader.GetString(6), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
+                ItemId = reader.GetString(7),
+                Client = reader.GetString(8),
+                DeviceName = reader.GetString(9),
+                PlayMethod = reader.GetString(10)
+            });
         }
 
         return results;
