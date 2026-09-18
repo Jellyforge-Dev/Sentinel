@@ -128,12 +128,30 @@ please open an issue with the relevant lines from Jellyfin's server log.
   report can trigger this diagnosis without ever actually transcoding. A `VIDEO_CODEC_UNSUPPORTED`
   (or similar) diagnosis with a real, non-empty `TranscodeReasons` value is the actual signal that
   the fix is working end to end.
-- **No dashboard, no notifications.** You have to read the SQLite database directly (see above).
-- **Only a narrow set of diagnoses so far.** Sentinel currently recognizes unsupported
+- **No notifications yet, and only a minimal read-only dashboard.** The full incident dashboard
+  (severity, acknowledge/resolve, notifications) from the original plan is not yet built — see
+  the plugin's own configuration page for what exists today.
+- **A wider, but still incomplete, set of diagnoses.** Sentinel currently recognizes unsupported
   video/audio codecs, unsupported containers, unsupported secondary audio tracks, too many
-  streams, and "transcoded but Jellyfin didn't say why." It does not yet explain every possible
-  reason a transcode happens (e.g. bitrate-driven transcodes aren't covered yet) — an
-  unrecognized transcode is simply not diagnosed, not misdiagnosed.
+  streams, external audio tracks, HDR/dynamic-range mismatches, audio channel downmixing,
+  bitrate-only transcodes, resolution-only transcodes, and "transcoded but Jellyfin didn't say
+  why." Still not covered by any rule at all: video profile/level/bit-depth/framerate/rotation
+  mismatches, reference-frame or anamorphic/interlaced video issues, audio profile/sample-rate/
+  bit-depth mismatches, subtitle codec mismatches other than burn-in, and a few rarer reasons —
+  a transcode caused by one of these is recorded (the raw reason is visible in the database) but
+  won't show a diagnosis on the dashboard yet. Also not yet covered: subtitle burn-in (needs
+  subtitle-stream data this plugin doesn't collect yet), repeated-transcode-pattern detection and
+  client-version-regression detection (both need a not-yet-built incident/history system), and a
+  few explicitly experimental or unverified diagnoses from the original project plan
+  (hardware-transcode-unavailable, mid-session direct-play failure, client-capability-gap,
+  remote-bandwidth-limit) that need further research before they can be built without guessing.
+  An unrecognized transcode is
+  simply not diagnosed, not misdiagnosed.
+- **Known Jellyfin core bugs are now called out separately.** When a diagnosis code has a
+  matching entry in Sentinel's curated Known Core Issues table (currently just
+  `TRANSCODE_REASON_MISSING`, linked to jellyfin/jellyfin#12193), the dashboard shows it as a
+  distinct "Known Jellyfin Bug" note, not as a Sentinel-inferred diagnosis — so the two are never
+  confused about which one is actually vouching for the explanation.
 - **The plugin repository above may have no installable version yet.** If `manifest.json` lists
   no versions, that means no release has been published — check the
   [repository's Releases page](https://github.com/Jellyforge-Dev/Sentinel/releases) or use the

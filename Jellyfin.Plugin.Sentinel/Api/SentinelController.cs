@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Net.Mime;
+using Jellyfin.Plugin.Sentinel.Diagnostics;
 using Jellyfin.Plugin.Sentinel.Persistence;
 using MediaBrowser.Common.Api;
 using MediaBrowser.Controller.Library;
@@ -46,19 +47,26 @@ public class SentinelController : ControllerBase
     {
         var summaries = _diagnosisRepository.GetRecent(50);
 
-        var response = summaries.Select(summary => new
+        var response = summaries.Select(summary =>
         {
-            summary.Id,
-            summary.Code,
-            Confidence = summary.Confidence.ToString(),
-            summary.Evidence,
-            summary.Explanation,
-            summary.Recommendation,
-            summary.CreatedAtUtc,
-            summary.Client,
-            summary.DeviceName,
-            summary.PlayMethod,
-            MediaName = ResolveMediaName(summary.ItemId)
+            var knownIssue = KnownCoreIssues.Match(summary.Code);
+
+            return new
+            {
+                summary.Id,
+                summary.Code,
+                Confidence = summary.Confidence.ToString(),
+                summary.Evidence,
+                summary.Explanation,
+                summary.Recommendation,
+                summary.CreatedAtUtc,
+                summary.Client,
+                summary.DeviceName,
+                summary.PlayMethod,
+                MediaName = ResolveMediaName(summary.ItemId),
+                KnownIssueUrl = knownIssue?.IssueUrl,
+                KnownIssueExplanation = knownIssue?.Explanation
+            };
         });
 
         return Ok(response);

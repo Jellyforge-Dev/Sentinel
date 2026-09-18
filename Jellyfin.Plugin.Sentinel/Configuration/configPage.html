@@ -49,6 +49,27 @@
                     }).join('');
                 }
 
+                function buildKnownIssueBlock(diagnosis) {
+                    // The https:// check is defense in depth, not a currently-exploitable gap:
+                    // today's only KnownIssueUrl values come from a hardcoded server-side table
+                    // (KnownCoreIssues.cs), not user input. It guards against a future version of
+                    // that table becoming configurable or remote-loaded ever allowing a
+                    // javascript: URL to reach this href unnoticed.
+                    if (!diagnosis.KnownIssueUrl || !/^https:\/\//.test(diagnosis.KnownIssueUrl)) {
+                        return '';
+                    }
+
+                    // Deliberately labeled distinctly from Sentinel's own diagnosis — this is a
+                    // curated pointer to an already-filed Jellyfin core bug, not something
+                    // Sentinel itself inferred (master plan Section 14: "Known Jellyfin Bug",
+                    // never presented as if it were a Sentinel diagnosis).
+                    return '<div style="margin-top:0.5em;border-left:3px solid orange;padding-left:0.5em;">' +
+                        '<strong>Known Jellyfin Bug (not a Sentinel diagnosis):</strong> ' +
+                        escapeHtmlText(diagnosis.KnownIssueExplanation) + ' ' +
+                        '<a href="' + escapeHtmlText(diagnosis.KnownIssueUrl) + '" target="_blank" rel="noopener noreferrer">' +
+                        escapeHtmlText(diagnosis.KnownIssueUrl) + '</a></div>';
+                }
+
                 function appendDiagnosisRows(tbody, diagnosis) {
                     // Property names below are PascalCase on purpose: Jellyfin's API serializes
                     // JSON with PascalCase property names by default (no camelCase conversion),
@@ -73,7 +94,8 @@
                     detailCell.innerHTML =
                         '<strong>Evidence:</strong><ul>' + buildEvidenceList(diagnosis.Evidence) + '</ul>' +
                         '<strong>Recommendation:</strong> ' + escapeHtmlText(diagnosis.Recommendation) +
-                        '<div><em>Code: ' + escapeHtmlText(diagnosis.Code) + '</em></div>';
+                        '<div><em>Code: ' + escapeHtmlText(diagnosis.Code) + '</em></div>' +
+                        buildKnownIssueBlock(diagnosis);
                     detailRow.appendChild(detailCell);
 
                     summaryRow.addEventListener('click', function () {

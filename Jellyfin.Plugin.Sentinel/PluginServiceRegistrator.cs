@@ -57,7 +57,7 @@ public sealed partial class PluginServiceRegistrator : IPluginServiceRegistrator
         });
         serviceCollection.AddSingleton<PlaybackEventRepository>();
         serviceCollection.AddSingleton<DiagnosisRepository>();
-        serviceCollection.AddSingleton(new RuleEngine(CoreTranscodeRules.All));
+        serviceCollection.AddSingleton(new RuleEngine(AllDiagnosticRules.All));
         serviceCollection.AddSingleton(TimeProvider.System);
         serviceCollection.AddHostedService<PlaybackCollectorHostedService>();
     }

@@ -80,12 +80,25 @@ public class RuleEngineTests
         Assert.Contains(result, d => d.Code == "AUDIO_CODEC_UNSUPPORTED");
     }
 
-    [Fact]
-    public void Diagnose_ReturnsNothing_ForDirectPlay()
+    [Theory]
+    [InlineData(TranscodeReason.VideoCodecNotSupported)] // would trigger VIDEO_CODEC_UNSUPPORTED
+    [InlineData(TranscodeReason.AudioCodecNotSupported)] // would trigger AUDIO_CODEC_UNSUPPORTED
+    [InlineData(TranscodeReason.ContainerNotSupported)] // would trigger CONTAINER_UNSUPPORTED
+    [InlineData(TranscodeReason.SecondaryAudioNotSupported)] // would trigger SECONDARY_AUDIO_UNSUPPORTED
+    [InlineData(TranscodeReason.StreamCountExceedsLimit)] // would trigger TOO_MANY_STREAMS
+    [InlineData(default(TranscodeReason))] // would trigger TRANSCODE_REASON_MISSING
+    public void Diagnose_ReturnsNothing_WhenNotTranscoding(TranscodeReason reasons)
     {
-        var result = _engine.Diagnose(BuildEvent(PlayMethod.DirectPlay, default));
-
-        Assert.Empty(result);
+        // A single shared reasons value here (as an earlier version of this test used) would
+        // only actually exercise the PlayMethod == Transcode gate of whichever rule's own
+        // HasFlag/equality condition that value happens to satisfy — for every other rule, the
+        // predicate would already fail on its own condition regardless of the gate. Each value
+        // above is chosen to satisfy exactly one rule's non-gate condition, so for every rule
+        // there is a covered case where its own gate is the only thing standing between a
+        // DirectPlay/DirectStream/null session and a false diagnosis.
+        Assert.Empty(_engine.Diagnose(BuildEvent(PlayMethod.DirectPlay, reasons)));
+        Assert.Empty(_engine.Diagnose(BuildEvent(PlayMethod.DirectStream, reasons)));
+        Assert.Empty(_engine.Diagnose(BuildEvent(null, reasons)));
     }
 
     [Fact]
