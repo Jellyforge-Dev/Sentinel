@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/Jellyforge-Dev/Sentinel/main/Sentinel-Logo.png",
     "versions": [
       {
+        "version": "0.1.5.0",
+        "changelog": "Adds five new diagnosis rules covering external audio tracks, HDR/dynamic-range mismatches, audio channel downmixing, bitrate-only transcodes, and resolution-only transcodes — including the exact real-world case confirmed on a live server in 0.1.4.0 (an AV1 transcode with only an audio-channel-downmix reason, previously unrecognized). Also wires up the previously dormant Known Core Issues table into the API and dashboard, surfaced as a distinct \"Known Jellyfin Bug\" note. Verified by three rounds of independent review; each rule's PlayMethod == Transcode gate and mutual exclusivity with stronger, more specific diagnoses is covered by a dedicated regression test, verified RED/GREEN by temporarily removing every gate and confirming each one is independently caught. Not yet confirmed against a real server for these specific new rules.",
+        "targetAbi": "12.1.0.0",
+        "sourceUrl": "https://github.com/Jellyforge-Dev/Sentinel/releases/download/v0.1.5.0/sentinel-0.1.5.0.zip",
+        "checksum": "2cd84f1ba5955912cf7e6652640ba174",
+        "timestamp": "2026-09-18T17:20:48Z"
+      },
+      {
         "version": "0.1.4.0",
         "changelog": "Fixes a data-integrity bug confirmed on a real server running 0.1.3.0: a session with a verified, active ffmpeg transcode (video re-encoded, audio downmixed — confirmed via the server's own transcode log) still produced a PlaybackEvent row with PlayMethod = DirectPlay next to a correctly non-zero TranscodeReasons, silently suppressing the diagnosis despite the reasons having been captured correctly. PlaybackEventFactory now forces PlayMethod to Transcode when TranscodeReasons is non-default and PlayMethod resolved to DirectPlay or null (DirectStream/remux sessions are correctly left alone, since they legitimately carry non-zero TranscodeReasons too — a broader first version of this fix was caught and narrowed during review before release). Verified by two rounds of independent review plus a regression test reproducing the exact real-world contradiction; not yet re-confirmed against a real server for this specific fix.",
         "targetAbi": "12.1.0.0",
