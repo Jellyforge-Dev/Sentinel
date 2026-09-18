@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using Jellyfin.Plugin.Sentinel.Collector;
 using Jellyfin.Plugin.Sentinel.Diagnostics;
 using Jellyfin.Plugin.Sentinel.Persistence;
@@ -57,7 +58,7 @@ public sealed partial class PluginServiceRegistrator : IPluginServiceRegistrator
         });
         serviceCollection.AddSingleton<PlaybackEventRepository>();
         serviceCollection.AddSingleton<DiagnosisRepository>();
-        serviceCollection.AddSingleton(new RuleEngine(CoreTranscodeRules.All));
+        serviceCollection.AddSingleton(new RuleEngine(CoreTranscodeRules.All.Concat(AdvancedTranscodeRules.All).ToList()));
         serviceCollection.AddSingleton(TimeProvider.System);
         serviceCollection.AddHostedService<PlaybackCollectorHostedService>();
     }
