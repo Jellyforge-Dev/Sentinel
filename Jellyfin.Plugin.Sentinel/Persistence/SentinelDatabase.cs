@@ -6,7 +6,7 @@ namespace Jellyfin.Plugin.Sentinel.Persistence;
 /// <summary>
 /// Sentinel's own SQLite database — fully separate from Jellyfin's database.
 /// </summary>
-public sealed class SentinelDatabase : IDisposable
+public sealed class SentinelDatabase
 {
     private readonly string _connectionString;
 
@@ -31,16 +31,6 @@ public sealed class SentinelDatabase : IDisposable
         var connection = new SqliteConnection(_connectionString);
         connection.Open();
         return connection;
-    }
-
-    /// <summary>
-    /// Releases resources used by this database instance.
-    /// </summary>
-    public void Dispose()
-    {
-        // SqliteConnection cleanup is handled by the using statements in each method
-        // This method exists for future resource management and to satisfy IDisposable
-        SqliteConnection.ClearAllPools();
     }
 
     private void Initialize()

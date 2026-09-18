@@ -1,8 +1,8 @@
 using System;
 using System.IO;
-using System.Linq;
 using Jellyfin.Plugin.Sentinel.Domain;
 using Jellyfin.Plugin.Sentinel.Persistence;
+using Microsoft.Data.Sqlite;
 using Xunit;
 
 namespace Jellyfin.Plugin.Sentinel.Tests.Persistence;
@@ -10,7 +10,7 @@ namespace Jellyfin.Plugin.Sentinel.Tests.Persistence;
 public class SentinelDatabaseTests : IDisposable
 {
     private readonly string _databasePath;
-    private SentinelDatabase _database;
+    private readonly SentinelDatabase _database;
 
     public SentinelDatabaseTests()
     {
@@ -60,10 +60,9 @@ public class SentinelDatabaseTests : IDisposable
 
     public void Dispose()
     {
-        _database?.Dispose();
-
-        // Give SQLite time to release the file handle
-        System.Threading.Thread.Sleep(100);
+        // Clear all pooled SQLite connections to release file handles on Windows
+        // where the connection pool holds a file handle even after disposal
+        SqliteConnection.ClearAllPools();
 
         if (File.Exists(_databasePath))
         {
