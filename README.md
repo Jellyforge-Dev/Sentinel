@@ -15,10 +15,12 @@ specific transcode or playback problem happened, tracks it as a deduplicated inc
 **Status:** early development / pre-release. The Playback Doctor core (collector, rule engine,
 SQLite persistence) is implemented and unit-tested. `v0.1.0-alpha` was installed on a real
 Jellyfin 12.1 server and failed to load (native SQLite library loading bug); `v0.1.1.0` fixes
-that, verified by code inspection and a clean local build/test run, but **not yet confirmed on a
-real server**. There is no admin dashboard or notification delivery yet — diagnoses are
-currently only visible by inspecting Sentinel's own SQLite database directly. See
-[`SETUP.md`](./SETUP.md) before installing.
+that and is **confirmed loading and running on a real Jellyfin 12.1 server** — active status,
+config page rendering correctly. What's not yet confirmed live is the actual playback-diagnosis
+pipeline (a real transcode producing a row in Sentinel's database) — see
+[`SETUP.md`](./SETUP.md) for that next step. There is no admin dashboard or notification
+delivery yet — diagnoses are currently only visible by inspecting Sentinel's own SQLite database
+directly.
 
 ## What it does today
 
