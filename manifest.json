@@ -9,8 +9,16 @@
     "imageUrl": "https://raw.githubusercontent.com/Jellyforge-Dev/Sentinel/main/Sentinel-Logo.png",
     "versions": [
       {
+        "version": "0.1.2.0",
+        "changelog": "Adds a minimal read-only dashboard to the plugin's configuration page: recent diagnoses (media, client/device, confidence, explanation) with click-to-expand evidence, backed by a new admin-only API endpoint. Verified by code inspection, two independent review rounds, and a clean local build/test run; not yet independently confirmed against a real server for this specific feature.",
+        "targetAbi": "12.1.0.0",
+        "sourceUrl": "https://github.com/Jellyforge-Dev/Sentinel/releases/download/v0.1.2.0/Jellyfin.Plugin.Sentinel-0.1.2.0.zip",
+        "checksum": "fac7f797e1e2cd9ea762e74a1c248109",
+        "timestamp": "2026-09-18T12:25:35Z"
+      },
+      {
         "version": "0.1.1.0",
-        "changelog": "Fixes a confirmed bug in 0.1.0.0: installing on a real Jellyfin server resulted in status 'Malfunctioned' because of native SQLite library loading (see build.yaml changelog for the full root cause). This fix is verified by code inspection and a clean local build/test run, but not yet re-confirmed on a real server. 0.1.0.0 is removed from this list since it is confirmed broken.",
+        "changelog": "Fixes a confirmed bug in 0.1.0.0: installing on a real Jellyfin server resulted in status 'Malfunctioned' because of native SQLite library loading (see build.yaml changelog for the full root cause). Confirmed loading and running correctly on a real Jellyfin 12.1 server. 0.1.0.0 is removed from this list since it is confirmed broken.",
         "targetAbi": "12.1.0.0",
         "sourceUrl": "https://github.com/Jellyforge-Dev/Sentinel/releases/download/v0.1.1.0/Jellyfin.Plugin.Sentinel-0.1.1.0.zip",
         "checksum": "7190c3c67b79d3f87c40954184d9cacf",
