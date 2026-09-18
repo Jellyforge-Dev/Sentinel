@@ -1,0 +1,12 @@
+[
+  {
+    "guid": "4b5e3a79-7798-4066-841e-db7eb0125dc9",
+    "name": "Sentinel",
+    "description": "Sentinel watches Jellyfin playback sessions and explains, with evidence, why a specific transcode or playback problem happened — not just that it happened.",
+    "overview": "Evidence-based root-cause diagnosis for Jellyfin playback problems",
+    "owner": "Jellyforge-Dev",
+    "category": "General",
+    "imageUrl": "https://raw.githubusercontent.com/Jellyforge-Dev/Sentinel/main/Sentinel-Logo.png",
+    "versions": []
+  }
+]

@@ -1,17 +1,48 @@
-# Jellyfin Sentinel
+<p align="center">
+  <img src="./Sentinel-Logo.png" alt="Jellyfin Sentinel logo" width="160" />
+</p>
 
-Evidence-based root-cause diagnosis and incident notifications for self-hosted Jellyfin servers.
+<h1 align="center">Jellyfin Sentinel</h1>
+
+<p align="center">
+  Evidence-based root-cause diagnosis for Jellyfin playback problems.
+</p>
 
 Sentinel watches Jellyfin playback sessions and explains — with evidence, not guesses — why a
 specific transcode or playback problem happened, tracks it as a deduplicated incident, and
 (in a later milestone) can notify you about it.
 
-**Status:** early development. The Playback Doctor core (collector, rule engine, SQLite
-persistence) is being built first; the notification and dashboard layers follow.
+**Status:** early development / pre-release. The Playback Doctor core (collector, rule engine,
+SQLite persistence) is implemented and unit-tested; it has **not yet been verified against a
+live Jellyfin server**. There is no admin dashboard or notification delivery yet — diagnoses are
+currently only visible by inspecting Sentinel's own SQLite database directly. See
+[`SETUP.md`](./SETUP.md) before installing.
 
-See [`JELLYFIN_SENTINEL_MASTER_PLAN.md`](./JELLYFIN_SENTINEL_MASTER_PLAN.md) for the full
-architecture and product plan, and [`JELLYFIN_ECOSYSTEM_GAP_ANALYSIS.md`](./JELLYFIN_ECOSYSTEM_GAP_ANALYSIS.md)
-for the ecosystem research behind it.
+## What it does today
+
+- Observes finished playback sessions (`ISessionManager.PlaybackStopped`)
+- Runs each session through a deterministic rule engine built on Jellyfin's own `TranscodeReason`
+  flags — no guessing, no AI, just the data Jellyfin already has
+- Recognizes: unsupported video/audio codec, unsupported container, unsupported secondary audio
+  track, too many streams, and the case where Jellyfin transcoded but didn't record why
+- Cross-references a small, curated list of known Jellyfin core bugs, so Sentinel can say "this is
+  a known upstream issue, not your configuration" where that's actually true
+- Persists every observed session and diagnosis to its own SQLite database, fully separate from
+  Jellyfin's own database
+
+## What it doesn't do yet
+
+Dashboard UI, notifications (Discord/Telegram/Email/webhook), library health checks, client
+compatibility tracking, and AI-generated explanations are all deliberately out of scope for this
+first milestone — see the roadmap in the master plan below for why, and when.
+
+## Documentation
+
+- [`SETUP.md`](./SETUP.md) — how to install and what to expect right now
+- [`JELLYFIN_SENTINEL_MASTER_PLAN.md`](./JELLYFIN_SENTINEL_MASTER_PLAN.md) — full architecture,
+  data model, and phased roadmap
+- [`JELLYFIN_ECOSYSTEM_GAP_ANALYSIS.md`](./JELLYFIN_ECOSYSTEM_GAP_ANALYSIS.md) — the ecosystem
+  research behind the product decisions
 
 ## License
 
