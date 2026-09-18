@@ -1,0 +1,17 @@
+---
+name: "Sentinel"
+guid: "4b5e3a79-7798-4066-841e-db7eb0125dc9"
+version: "0.1.0.0"
+targetAbi: "12.1.0.0"
+framework: "net10.0"
+overview: "Evidence-based root-cause diagnosis for Jellyfin playback problems"
+description: >
+  Sentinel watches Jellyfin playback sessions and explains, with evidence,
+  why a specific transcode or playback problem happened — not just that
+  it happened.
+category: "General"
+owner: "Jellyforge-Dev"
+artifacts:
+- "Jellyfin.Plugin.Sentinel.dll"
+changelog: >
+  Initial foundation: playback observation, rule engine, SQLite persistence.

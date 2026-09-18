@@ -1,0 +1,8 @@
+root = true
+
+[*.cs]
+# CA1724: Type names should not match namespaces.
+# The plugin's entry-point class is intentionally named "Plugin" inside the
+# "Jellyfin.Plugin.Sentinel" namespace, per Jellyfin's own plugin convention
+# (see jellyfin/jellyfin-plugin-template). Same suppression used upstream.
+dotnet_diagnostic.CA1724.severity = suggestion

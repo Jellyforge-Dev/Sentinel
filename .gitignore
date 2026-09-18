@@ -1,1 +1,10 @@
 .superpowers/
+
+bin/
+obj/
+*.user
+.vs/
+.idea/
+*.suo
+*.db
+*.db-journal
