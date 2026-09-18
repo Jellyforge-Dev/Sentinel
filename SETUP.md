@@ -44,6 +44,13 @@ If you're testing an unreleased build:
    the `runtimes/` subfolder — into that `Sentinel` folder. Copying only the `.dll` will make the
    plugin fail to load, since it depends on the SQLite packages listed in
    [`Jellyfin.Plugin.Sentinel/build.yaml`](./Jellyfin.Plugin.Sentinel/build.yaml).
+5. **Rename the two Windows native SQLite files** you just copied — `dotnet publish` produces
+   `e_sqlite3.dll` under both `runtimes/win-x64/native/` and `runtimes/win-arm64/native/`, but
+   they must be renamed to `e_sqlite3.dll.win` (only on the copy inside the `Sentinel` plugin
+   folder, not in your build output). Skipping this makes Jellyfin try to load the native library
+   as a managed assembly and crash the plugin with `BadImageFormatException` — see the comment
+   above `artifacts:` in `build.yaml` for the full explanation. Linux/macOS files don't need
+   renaming.
 5. Restart Jellyfin and check its server log for a line from Sentinel confirming it started and
    showing the database path it resolved (see below).
 
@@ -99,7 +106,10 @@ There is no CI automation for this yet — releases are cut manually:
 2. `dotnet publish Jellyfin.Plugin.Sentinel/Jellyfin.Plugin.Sentinel.csproj -c Release`.
 3. Zip **exactly** the files listed under `artifacts:` in `build.yaml` (that list is a verified,
    strict copy-filter matching what JPRM would produce — don't just zip the whole publish
-   folder without checking it still matches).
+   folder without checking it still matches). **The two Windows native SQLite files must be
+   renamed** from `e_sqlite3.dll` to `e_sqlite3.dll.win` when staging them into the zip —
+   `dotnet publish` does not do this renaming itself, it's a packaging-time step. See the long
+   comment above `artifacts:` in `build.yaml` for why this is required at all.
 4. Compute the zip's MD5 checksum (`md5sum <file>.zip` or equivalent).
 5. Create a GitHub Release with that tag/version, uploading the zip as a release asset.
 6. Add a new entry to the `versions` array in [`manifest.json`](./manifest.json): `version`
