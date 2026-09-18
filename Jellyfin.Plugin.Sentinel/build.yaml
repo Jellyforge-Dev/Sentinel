@@ -1,7 +1,7 @@
 ---
 name: "Sentinel"
 guid: "4b5e3a79-7798-4066-841e-db7eb0125dc9"
-version: "0.1.3.0"
+version: "0.1.4.0"
 targetAbi: "12.1.0.0"
 framework: "net10.0"
 overview: "Evidence-based root-cause diagnosis for Jellyfin playback problems"
@@ -58,6 +58,17 @@ artifacts:
 - "runtimes/osx-x64/native/libe_sqlite3.dylib"
 - "runtimes/osx-arm64/native/libe_sqlite3.dylib"
 changelog: >
+  0.1.4.0: Fixes a data-integrity bug confirmed on a real server running 0.1.3.0: a session with
+  a verified, active ffmpeg transcode (video re-encoded, audio downmixed — confirmed via the
+  server's own transcode log) still produced a PlaybackEvent row with PlayMethod = DirectPlay
+  next to a correctly non-zero TranscodeReasons, silently suppressing the diagnosis despite the
+  reasons having been captured correctly. PlaybackEventFactory now forces PlayMethod to
+  Transcode when TranscodeReasons is non-default and PlayMethod resolved to DirectPlay or null
+  (DirectStream/remux sessions are correctly left alone, since they legitimately carry
+  non-zero TranscodeReasons too — a broader first version of this fix was caught and narrowed
+  during review before release). Verified by two rounds of independent review plus a regression
+  test reproducing the exact real-world contradiction; not yet re-confirmed against a real
+  server for this specific fix.
   0.1.3.0: Fixes a bug affecting every previous version: Jellyfin always clears the play
   method and transcode-reason data on a session before firing the event this plugin used to
   read them from, so PlaybackEvent rows were recorded with an empty play method and zero
