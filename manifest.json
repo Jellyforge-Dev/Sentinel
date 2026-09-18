@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/Jellyforge-Dev/Sentinel/main/Sentinel-Logo.png",
     "versions": [
       {
+        "version": "0.1.3.0",
+        "changelog": "Fixes a bug affecting every previous version: Jellyfin always clears the play method and transcode-reason data on a session before firing the event this plugin used to read them from, so PlaybackEvent rows were recorded with an empty play method and zero transcode reasons regardless of whether a transcode actually happened — confirmed live with a real bitrate-driven transcode that produced a blank database row despite Jellyfin's own dashboard showing an active transcode with a specific reason. Sentinel now also listens to playback-progress events (while that data is still live) and caches it per playback, including a fallback for Jellyfin's own idle-timeout stop path, which never supplies the identifier this plugin would otherwise key on. Verified by three rounds of independent review plus targeted regression tests reproducing the exact real-world event sequence; not yet re-confirmed against a real server for this specific fix.",
+        "targetAbi": "12.1.0.0",
+        "sourceUrl": "https://github.com/Jellyforge-Dev/Sentinel/releases/download/v0.1.3.0/sentinel-0.1.3.0.zip",
+        "checksum": "79e6920df3fef883820bcda241688aea",
+        "timestamp": "2026-09-18T13:56:14Z"
+      },
+      {
         "version": "0.1.2.0",
         "changelog": "Adds a minimal read-only dashboard to the plugin's configuration page: recent diagnoses (media, client/device, confidence, explanation) with click-to-expand evidence, backed by a new admin-only API endpoint. Verified by code inspection, two independent review rounds, and a clean local build/test run; not yet independently confirmed against a real server for this specific feature.",
         "targetAbi": "12.1.0.0",
