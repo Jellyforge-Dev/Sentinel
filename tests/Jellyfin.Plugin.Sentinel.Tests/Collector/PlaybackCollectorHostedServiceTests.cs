@@ -170,10 +170,17 @@ public class PlaybackCollectorHostedServiceTests : IDisposable
     {
         // Regression test for the original cache-keying bug: caching by the device-scoped
         // Session.Id (instead of the per-playback PlaySessionId) let a snapshot from one
-        // playback get attributed to a later, unrelated playback on the same device. Both
-        // playbacks below share a Session.Id (same device) but have distinct PlaySessionIds —
-        // the second stop must not inherit the first playback's cached transcode data just
-        // because they came from the same device.
+        // playback get attributed to a later, unrelated playback on the same device.
+        //
+        // The first playback below is DELIBERATELY never stopped — it only ever fires
+        // PlaybackProgress, simulating a client that crashed or force-quit without ever sending
+        // a stop report. This is what actually distinguishes the two keying schemes: if the
+        // first playback were stopped first (as an earlier version of this test did), TryRemove
+        // would clear its cache entry regardless of which key was used, and the second stop would
+        // find nothing either way — passing for the wrong reason under BOTH the buggy
+        // Session.Id-keyed cache and the fixed PlaySessionId-keyed one. Leaving the first
+        // playback's entry in place is what makes a Session.Id-keyed cache actually reachable by
+        // the second, unrelated stop below.
         var sessionManagerMock = new Mock<ISessionManager>();
         var service = CreateService(sessionManagerMock);
 
@@ -197,16 +204,6 @@ public class PlaybackCollectorHostedServiceTests : IDisposable
             sessionManagerMock.Object,
             new PlaybackProgressEventArgs { Session = firstSession, Item = firstItem, PlaySessionId = "play-session-first" });
 
-        firstSession.PlayState = new PlayerStateInfo();
-        firstSession.TranscodingInfo = null;
-
-        sessionManagerMock.Raise(
-            m => m.PlaybackStopped += null,
-            sessionManagerMock.Object,
-            new PlaybackStopEventArgs { Session = firstSession, Item = firstItem, PlaySessionId = "play-session-first" });
-
-        Assert.Equal(1, CountDiagnoses("VIDEO_CODEC_UNSUPPORTED"));
-
         // A second playback on the SAME device, with its OWN distinct PlaySessionId, stops
         // without ever firing PlaybackProgress for it and with already-cleared session fields —
         // exactly what a real PlaybackStopped handler would see for a genuinely new playback.
@@ -227,9 +224,9 @@ public class PlaybackCollectorHostedServiceTests : IDisposable
 
         await service.StopAsync(CancellationToken.None);
 
-        // Still exactly 1: the second stop must not have inherited the first playback's cached
-        // transcode data just because it shares a device with it.
-        Assert.Equal(1, CountDiagnoses("VIDEO_CODEC_UNSUPPORTED"));
+        // Zero, not one: the second stop must not have inherited the first (still-uncompleted)
+        // playback's cached transcode data just because it shares a device with it.
+        Assert.Equal(0, CountDiagnoses("VIDEO_CODEC_UNSUPPORTED"));
     }
 
     [Fact]
