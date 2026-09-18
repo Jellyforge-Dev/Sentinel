@@ -1,7 +1,7 @@
 ---
 name: "Sentinel"
 guid: "4b5e3a79-7798-4066-841e-db7eb0125dc9"
-version: "0.1.4.0"
+version: "0.1.5.0"
 targetAbi: "12.1.0.0"
 framework: "net10.0"
 overview: "Evidence-based root-cause diagnosis for Jellyfin playback problems"
@@ -58,6 +58,16 @@ artifacts:
 - "runtimes/osx-x64/native/libe_sqlite3.dylib"
 - "runtimes/osx-arm64/native/libe_sqlite3.dylib"
 changelog: >
+  0.1.5.0: Adds five new diagnosis rules covering external audio tracks, HDR/dynamic-range
+  mismatches, audio channel downmixing, bitrate-only transcodes, and resolution-only transcodes
+  — including the exact real-world case confirmed on a live server in 0.1.4.0 (an AV1 transcode
+  with only an audio-channel-downmix reason, previously unrecognized). Also wires up the
+  previously dormant Known Core Issues table into the API and dashboard, surfaced as a distinct
+  "Known Jellyfin Bug" note. Verified by three rounds of independent review; each rule's
+  PlayMethod == Transcode gate and mutual exclusivity with stronger, more specific diagnoses is
+  covered by a dedicated regression test, verified RED/GREEN by temporarily removing every gate
+  and confirming each one is independently caught. Not yet confirmed against a real server for
+  these specific new rules.
   0.1.4.0: Fixes a data-integrity bug confirmed on a real server running 0.1.3.0: a session with
   a verified, active ffmpeg transcode (video re-encoded, audio downmixed — confirmed via the
   server's own transcode log) still produced a PlaybackEvent row with PlayMethod = DirectPlay
