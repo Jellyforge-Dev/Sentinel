@@ -17,7 +17,8 @@ owner: "Jellyforge-Dev"
 # subfolder structure in the entry's own path. Nothing outside this list is ever included,
 # so this is a strict copy-filter, not just descriptive metadata about the package contents.
 # Verified against `dotnet publish -c Release` output on 2026-09-18 (Microsoft.Data.Sqlite
-# 10.0.12 / SQLitePCLRaw 3.x, matching the PackageReference versions in the .csproj) — the
+# 10.0.12 / SQLitePCLRaw.provider.e_sqlite3 2.1.12, matching the PackageReference versions in
+# the .csproj) — the
 # managed assemblies below plus a `runtimes/<rid>/native/` folder are what the publish step
 # actually produces. If the SQLite package version ever changes, re-run publish and re-check
 # this list rather than assuming it's still accurate.
@@ -57,10 +58,13 @@ artifacts:
 - "runtimes/osx-x64/native/libe_sqlite3.dylib"
 - "runtimes/osx-arm64/native/libe_sqlite3.dylib"
 changelog: >
-  0.1.1.0: Fix "Malfunctioned" plugin status on real Jellyfin servers — Jellyfin's plugin
-  loader tried to load the native Windows SQLite library as a managed .NET assembly
-  (BadImageFormatException) and provides no automatic native-library resolution on any
-  platform. The Windows library now ships as e_sqlite3.dll.win, and Plugin.cs registers
-  a manual native-library resolver for all platforms. Confirmed via a real Jellyfin 12.1
-  install (0.1.0.0 failed to load; this is the fix).
+  0.1.1.0: Fix for a confirmed bug in 0.1.0.0 — real Jellyfin 12.1 install testing showed the
+  plugin gets disabled with status "Malfunctioned", because Jellyfin's plugin loader tried to
+  load the native Windows SQLite library as a managed .NET assembly (BadImageFormatException)
+  and provides no automatic native-library resolution on any platform. The Windows library now
+  ships as e_sqlite3.dll.win, and Plugin.cs registers a manual native-library resolver for all
+  platforms. This fix has been verified by code inspection and a clean local build/test run;
+  it has NOT yet been independently confirmed against a real server — do not treat 0.1.1.0 as
+  proven working until that happens.
   0.1.0.0: Initial foundation: playback observation, rule engine, SQLite persistence.
+  Confirmed broken on a real Jellyfin 12.1 server — see 0.1.1.0.
