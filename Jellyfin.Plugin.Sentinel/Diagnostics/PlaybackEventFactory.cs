@@ -46,14 +46,21 @@ public static class PlaybackEventFactory
     /// non-zero <c>TranscodeReasons</c> in the same row — likely a later progress tick, during a
     /// mid-playback seek/audio-track change, reporting a contradicting <c>PlayMethod</c> that
     /// the cache's null-only merge protection (see <see cref="PlaybackProgressSnapshot"/>)
-    /// didn't guard against. <c>DirectPlay</c> means Jellyfin served the raw file with no ffmpeg
-    /// job at all, so it genuinely cannot coexist with captured transcode reasons — but
+    /// didn't guard against. This is a heuristic, not a proven invariant: <c>DirectPlay</c>
+    /// means Jellyfin served the raw file with no ffmpeg job, so a captured transcode reason
+    /// contradicts it far more often than not — but the same field-misreporting failure mode
+    /// that motivates this override at all could in principle also misreport a remux as
+    /// <c>DirectPlay</c>, in which case this would still wrongly force it to <c>Transcode</c>.
     /// <c>DirectStream</c> (a remux: container changed, audio/video streams copied without
-    /// re-encoding) legitimately can, since Jellyfin still runs an ffmpeg job for it and still
-    /// records the reason the container needed changing (e.g. <c>ContainerNotSupported</c>) on
-    /// that same session. Forcing <c>DirectStream</c> sessions to <c>Transcode</c> here would
-    /// misclassify every remux as a full transcode and fire <c>CONTAINER_UNSUPPORTED</c>
-    /// (Confirmed confidence) for sessions that never re-encoded anything.
+    /// re-encoding) is excluded because it legitimately carries non-zero <c>TranscodeReasons</c>
+    /// (e.g. <c>ContainerNotSupported</c>, the very reason <c>DirectStream</c> was chosen over
+    /// <c>DirectPlay</c>) whenever it's reported correctly — forcing it to <c>Transcode</c>
+    /// unconditionally would misclassify every remux as a full transcode and fire
+    /// <c>CONTAINER_UNSUPPORTED</c> (Confirmed confidence) for sessions that never re-encoded
+    /// anything. A more robust fix — not yet implemented — would key this off
+    /// <c>TranscodingInfo.IsVideoDirect</c>/<c>IsAudioDirect</c> (Jellyfin's own remux
+    /// indicators, set independent of the client-reported <c>PlayMethod</c>) instead of the
+    /// <c>PlayMethod</c> value itself.
     /// </para>
     /// </remarks>
     public static PlaybackEvent? FromEventArgs(PlaybackStopEventArgs args, PlaybackProgressSnapshot? progressSnapshot)
