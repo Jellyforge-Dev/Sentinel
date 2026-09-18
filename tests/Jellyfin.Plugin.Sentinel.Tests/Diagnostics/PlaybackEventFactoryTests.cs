@@ -46,7 +46,7 @@ public class PlaybackEventFactoryTests
             TranscodeReasons = TranscodeReason.SubtitleCodecNotSupported | TranscodeReason.VideoCodecNotSupported,
             VideoCodec = "hevc",
             AudioCodec = "eac3",
-            CapturedAtUtc = DateTime.UtcNow
+            CapturedAtTimestamp = TimeProvider.System.GetTimestamp()
         };
 
         var result = PlaybackEventFactory.FromEventArgs(args, snapshot);

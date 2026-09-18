@@ -27,7 +27,23 @@ public class PlaybackCollectorHostedServiceTests : IDisposable
         _database = new SentinelDatabase(_databasePath);
     }
 
-    private PlaybackCollectorHostedService CreateService(Mock<ISessionManager> sessionManagerMock)
+    /// <summary>
+    /// A controllable <see cref="TimeProvider"/> for TTL-eviction tests: one unit advanced is one
+    /// millisecond, so <see cref="Advance"/> can move the clock by exact, arbitrary spans without
+    /// depending on wall-clock time or real delays.
+    /// </summary>
+    private sealed class TestTimeProvider : TimeProvider
+    {
+        private long _timestamp;
+
+        public override long TimestampFrequency => 1000;
+
+        public override long GetTimestamp() => _timestamp;
+
+        public void Advance(TimeSpan delta) => _timestamp += (long)delta.TotalMilliseconds;
+    }
+
+    private PlaybackCollectorHostedService CreateService(Mock<ISessionManager> sessionManagerMock, TimeProvider? timeProvider = null)
     {
         var playbackEventRepository = new PlaybackEventRepository(_database);
         var diagnosisRepository = new DiagnosisRepository(_database, NullLogger<DiagnosisRepository>.Instance);
@@ -38,6 +54,7 @@ public class PlaybackCollectorHostedServiceTests : IDisposable
             ruleEngine,
             playbackEventRepository,
             diagnosisRepository,
+            timeProvider ?? TimeProvider.System,
             NullLogger<PlaybackCollectorHostedService>.Instance);
     }
 
@@ -149,13 +166,14 @@ public class PlaybackCollectorHostedServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task OnPlaybackStopped_DoesNotReuseSnapshot_ForALaterUnrelatedStopWithTheSamePlaySessionId()
+    public async Task OnPlaybackStopped_DoesNotAttributeUnrelatedSnapshot_ToADifferentPlaySessionOnTheSameDevice()
     {
-        // Regression test for a cache-keying bug found on review: a snapshot must be consumed
-        // exactly once. If TryRemove on the first stop failed to actually clear the entry, a
-        // later, unrelated stop that happens to reuse the same PlaySessionId (or, before this
-        // fix, the same device-scoped Session.Id) would silently inherit stale transcode data
-        // that belongs to a completely different playback.
+        // Regression test for the original cache-keying bug: caching by the device-scoped
+        // Session.Id (instead of the per-playback PlaySessionId) let a snapshot from one
+        // playback get attributed to a later, unrelated playback on the same device. Both
+        // playbacks below share a Session.Id (same device) but have distinct PlaySessionIds —
+        // the second stop must not inherit the first playback's cached transcode data just
+        // because they came from the same device.
         var sessionManagerMock = new Mock<ISessionManager>();
         var service = CreateService(sessionManagerMock);
 
@@ -177,7 +195,7 @@ public class PlaybackCollectorHostedServiceTests : IDisposable
         sessionManagerMock.Raise(
             m => m.PlaybackProgress += null,
             sessionManagerMock.Object,
-            new PlaybackProgressEventArgs { Session = firstSession, Item = firstItem, PlaySessionId = "play-session-reused" });
+            new PlaybackProgressEventArgs { Session = firstSession, Item = firstItem, PlaySessionId = "play-session-first" });
 
         firstSession.PlayState = new PlayerStateInfo();
         firstSession.TranscodingInfo = null;
@@ -185,13 +203,13 @@ public class PlaybackCollectorHostedServiceTests : IDisposable
         sessionManagerMock.Raise(
             m => m.PlaybackStopped += null,
             sessionManagerMock.Object,
-            new PlaybackStopEventArgs { Session = firstSession, Item = firstItem, PlaySessionId = "play-session-reused" });
+            new PlaybackStopEventArgs { Session = firstSession, Item = firstItem, PlaySessionId = "play-session-first" });
 
         Assert.Equal(1, CountDiagnoses("VIDEO_CODEC_UNSUPPORTED"));
 
-        // A second, unrelated playback stops without ever firing PlaybackProgress, but happens
-        // to carry the same PlaySessionId value (the specific value doesn't matter in practice —
-        // what matters is that the dictionary entry from the first playback is gone).
+        // A second playback on the SAME device, with its OWN distinct PlaySessionId, stops
+        // without ever firing PlaybackProgress for it and with already-cleared session fields —
+        // exactly what a real PlaybackStopped handler would see for a genuinely new playback.
         var secondSession = new SessionInfo(sessionManagerMock.Object, NullLogger.Instance)
         {
             Id = "session-shared-device",
@@ -205,25 +223,75 @@ public class PlaybackCollectorHostedServiceTests : IDisposable
         sessionManagerMock.Raise(
             m => m.PlaybackStopped += null,
             sessionManagerMock.Object,
-            new PlaybackStopEventArgs { Session = secondSession, Item = secondItem, PlaySessionId = "play-session-reused" });
+            new PlaybackStopEventArgs { Session = secondSession, Item = secondItem, PlaySessionId = "play-session-second" });
 
         await service.StopAsync(CancellationToken.None);
 
         // Still exactly 1: the second stop must not have inherited the first playback's cached
-        // transcode data.
+        // transcode data just because it shares a device with it.
         Assert.Equal(1, CountDiagnoses("VIDEO_CODEC_UNSUPPORTED"));
     }
 
     [Fact]
-    public async Task OnPlaybackProgress_PreservesTranscodeReasons_WhenALaterTickArrivesWithClearedTranscodingInfo()
+    public async Task OnPlaybackStopped_ResolvesSnapshot_ViaSessionId_WhenStopHasNoPlaySessionId()
+    {
+        // Regression test for a bug found on review: Jellyfin's own idle-timeout stop path
+        // (SessionManager.CheckForIdlePlayback — verified against the exact v12.1 tag Sentinel
+        // targets) builds its PlaybackStopInfo without ever setting PlaySessionId, so
+        // PlaybackStopEventArgs.PlaySessionId is null for every idle-timeout stop. That is
+        // exactly the "client crashed mid-transcode, Jellyfin noticed it stopped reporting"
+        // case this plugin exists to diagnose. Keying the cache by PlaySessionId alone would
+        // silently produce zero diagnoses for every one of these — the secondary Session.Id
+        // index exists specifically to still resolve them.
+        var sessionManagerMock = new Mock<ISessionManager>();
+        var service = CreateService(sessionManagerMock);
+
+        await service.StartAsync(CancellationToken.None);
+
+        var session = new SessionInfo(sessionManagerMock.Object, NullLogger.Instance)
+        {
+            Id = "session-idle-timeout",
+            Client = "Fire TV",
+            DeviceName = "Living Room TV",
+            PlayState = new PlayerStateInfo { PlayMethod = PlayMethod.Transcode },
+            TranscodingInfo = new TranscodingInfo
+            {
+                TranscodeReasons = TranscodeReason.VideoCodecNotSupported
+            }
+        };
+        var item = new Movie { Id = Guid.NewGuid() };
+
+        sessionManagerMock.Raise(
+            m => m.PlaybackProgress += null,
+            sessionManagerMock.Object,
+            new PlaybackProgressEventArgs { Session = session, Item = item, PlaySessionId = "play-session-idle" });
+
+        session.PlayState = new PlayerStateInfo();
+        session.TranscodingInfo = null;
+
+        // Mirrors SessionManager.CheckForIdlePlayback's own PlaybackStopInfo construction: no
+        // PlaySessionId set at all, only Session.Id (via args.Session).
+        sessionManagerMock.Raise(
+            m => m.PlaybackStopped += null,
+            sessionManagerMock.Object,
+            new PlaybackStopEventArgs { Session = session, Item = item, PlaySessionId = null });
+
+        await service.StopAsync(CancellationToken.None);
+
+        Assert.Equal(1, CountDiagnoses("VIDEO_CODEC_UNSUPPORTED"));
+    }
+
+    [Fact]
+    public async Task OnPlaybackProgress_PreservesFullSnapshot_WhenALaterTickArrivesWithClearedSessionState()
     {
         // Regression test for the dispatch-asymmetry race found on review: Jellyfin fires
         // PlaybackProgress inline but dispatches PlaybackStopped asynchronously (verified
-        // against real source — see PlaybackCollectorHostedService's class remarks), and its own
-        // once-a-second automatic progress timer can replay a client's last known progress after
-        // TranscodingInfo has already been cleared for that session. A second progress tick that
-        // carries no TranscodingInfo must not erase transcode reasons/codecs already captured by
-        // an earlier tick for the same play session.
+        // against real source — see PlaybackCollectorHostedService's class remarks), so a
+        // progress tick can still land after RemoveNowPlayingItem has already reset
+        // session.PlayState and cleared session.TranscodingInfo for a session that's about to
+        // stop, but before the queued stop handler consumes the cached snapshot. A tick in that
+        // state must not erase PlayMethod, TranscodeReasons, or codecs already captured by an
+        // earlier tick for the same play session.
         var sessionManagerMock = new Mock<ISessionManager>();
         var service = CreateService(sessionManagerMock);
 
@@ -248,17 +316,16 @@ public class PlaybackCollectorHostedServiceTests : IDisposable
             sessionManagerMock.Object,
             new PlaybackProgressEventArgs { Session = session, Item = item, PlaySessionId = "play-session-racey" });
 
-        // A ghost/duplicate tick for the same play session: PlayMethod still reports Transcode
-        // (Jellyfin would still be replaying the client's last submitted progress info), but
-        // TranscodingInfo has already been cleared on the session object.
+        // Simulate RemoveNowPlayingItem having already run on this SAME session instance before
+        // this second, ghost/duplicate progress tick lands — both PlayState AND TranscodingInfo
+        // cleared, matching the exact real-world race window.
+        session.PlayState = new PlayerStateInfo();
         session.TranscodingInfo = null;
 
         sessionManagerMock.Raise(
             m => m.PlaybackProgress += null,
             sessionManagerMock.Object,
             new PlaybackProgressEventArgs { Session = session, Item = item, PlaySessionId = "play-session-racey" });
-
-        session.PlayState = new PlayerStateInfo();
 
         sessionManagerMock.Raise(
             m => m.PlaybackStopped += null,
@@ -267,11 +334,68 @@ public class PlaybackCollectorHostedServiceTests : IDisposable
 
         await service.StopAsync(CancellationToken.None);
 
-        // A correct merge yields VIDEO_CODEC_UNSUPPORTED (Confirmed). A naive replace-on-write
-        // would instead yield TRANSCODE_REASON_MISSING (Unknown) because the second tick's empty
-        // TranscodeReasons would have overwritten the first tick's real ones.
+        // A correct merge (including PlayMethod) yields VIDEO_CODEC_UNSUPPORTED (Confirmed). A
+        // merge that replaces PlayMethod unconditionally would instead yield no diagnosis at
+        // all, since every rule in CoreTranscodeRules requires PlayMethod == Transcode.
         Assert.Equal(1, CountDiagnoses("VIDEO_CODEC_UNSUPPORTED"));
         Assert.Equal(0, CountDiagnoses("TRANSCODE_REASON_MISSING"));
+    }
+
+    [Fact]
+    public async Task OnPlaybackProgress_EvictsSnapshot_OnceItsTtlHasElapsed()
+    {
+        // Confirms the TTL sweep actually removes entries for play sessions that never fire
+        // PlaybackStopped (a crashed client, a dropped connection) — otherwise, switching the
+        // cache key from the device-bounded Session.Id to the per-playback PlaySessionId (see
+        // the other tests above) would make the cache's keyspace grow without bound for as long
+        // as the server runs.
+        var sessionManagerMock = new Mock<ISessionManager>();
+        var timeProvider = new TestTimeProvider();
+        var service = CreateService(sessionManagerMock, timeProvider);
+
+        await service.StartAsync(CancellationToken.None);
+
+        var session = new SessionInfo(sessionManagerMock.Object, NullLogger.Instance)
+        {
+            Id = "session-ttl",
+            Client = "Fire TV",
+            DeviceName = "Living Room TV",
+            PlayState = new PlayerStateInfo { PlayMethod = PlayMethod.Transcode },
+            TranscodingInfo = new TranscodingInfo
+            {
+                TranscodeReasons = TranscodeReason.VideoCodecNotSupported
+            }
+        };
+        var item = new Movie { Id = Guid.NewGuid() };
+
+        sessionManagerMock.Raise(
+            m => m.PlaybackProgress += null,
+            sessionManagerMock.Object,
+            new PlaybackProgressEventArgs { Session = session, Item = item, PlaySessionId = "play-session-ttl" });
+
+        timeProvider.Advance(TimeSpan.FromMinutes(31));
+
+        // Any other progress tick runs the eviction sweep — it doesn't need to relate to the
+        // session under test.
+        var otherSession = new SessionInfo(sessionManagerMock.Object, NullLogger.Instance) { Id = "session-other" };
+        sessionManagerMock.Raise(
+            m => m.PlaybackProgress += null,
+            sessionManagerMock.Object,
+            new PlaybackProgressEventArgs { Session = otherSession, Item = item, PlaySessionId = "play-session-other" });
+
+        session.PlayState = new PlayerStateInfo();
+        session.TranscodingInfo = null;
+
+        sessionManagerMock.Raise(
+            m => m.PlaybackStopped += null,
+            sessionManagerMock.Object,
+            new PlaybackStopEventArgs { Session = session, Item = item, PlaySessionId = "play-session-ttl" });
+
+        await service.StopAsync(CancellationToken.None);
+
+        // If the TTL sweep had NOT run, the original snapshot would still be present and this
+        // would incorrectly still be 1.
+        Assert.Equal(0, CountDiagnoses("VIDEO_CODEC_UNSUPPORTED"));
     }
 
     public void Dispose()
