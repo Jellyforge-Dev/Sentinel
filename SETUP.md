@@ -103,14 +103,23 @@ please open an issue with the relevant lines from Jellyfin's server log.
 
 - **`v0.1.0-alpha` was tested against a live Jellyfin 12.1 server and failed** — it was disabled
   with status "Malfunctioned" because of the native-library loading problem explained above.
-  **`v0.1.1.0` fixes it and is confirmed loading and running on a real Jellyfin 12.1 server** —
-  active status, config page rendering correctly. What's still unconfirmed live is the actual
-  playback-diagnosis pipeline: whether a real transcode produces a row in `sentinel.db` end to
-  end. Every part of this plugin has been unit- and integration-tested against simulated Jellyfin
-  objects, which is exactly the kind of testing that missed the `v0.1.0-alpha` loading bug in the
-  first place, since simulated tests don't run inside Jellyfin's actual plugin-loading process —
-  they can't provide the same confidence for the event-collection path either, hence this being
-  called out as a distinct, still-open item rather than assumed to work because loading now does.
+  **`v0.1.1.0` fixes it and is confirmed loading and running on a real Jellyfin 12.1 server.**
+- **A second live-only bug was found and fixed: forcing a real transcode produced no diagnosis at
+  all, for a reason that had nothing to do with rule coverage.** Live testing showed a
+  bitrate-driven transcode leaving `PlaybackEvent.PlayMethod` empty and `TranscodeReasons` at `0`
+  in `sentinel.db`, even though Jellyfin's own dashboard clearly showed an active transcode with a
+  specific reason. Root cause, verified against real Jellyfin 12.1 source
+  (`Emby.Server.Implementations.Session.SessionManager`): Jellyfin's own `OnPlaybackStopped`
+  always calls `RemoveNowPlayingItem(session)` — which resets `session.PlayState` to a brand-new,
+  empty object and clears `session.TranscodingInfo` to `null` — **before** firing the
+  `PlaybackStopped` event every Sentinel version up to this point relied on exclusively. This
+  affected every recorded session, not just bitrate-driven ones; the earlier explanation in this
+  document ("remux doesn't trigger a rule, so no diagnosis is correct") was an unverified guess
+  that happened to sound plausible and has been retracted. The fix (present from the version this
+  bullet ships in) also listens to `PlaybackProgress`, caches the last known play method and
+  transcode reason per session while it's still live, and uses that cached snapshot once the
+  session stops. Confirmed by a test that reproduces the exact real-world sequence and fails
+  without the fix; **not yet re-confirmed against a real server for this specific fix.**
 - **No dashboard, no notifications.** You have to read the SQLite database directly (see above).
 - **Only a narrow set of diagnoses so far.** Sentinel currently recognizes unsupported
   video/audio codecs, unsupported containers, unsupported secondary audio tracks, too many
