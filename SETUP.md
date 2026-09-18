@@ -1,8 +1,9 @@
 # Setting up Jellyfin Sentinel
 
 This document is for people who want to install and run Sentinel today. Read the "Current
-limitations" section before you do — this is pre-release software, and the fix for the one known
-live-server failure so far has not itself been confirmed on a real server yet.
+limitations" section before you do — this is pre-release software. `v0.1.1.0` is confirmed
+loading and running on a real Jellyfin 12.1 server, but the actual playback-diagnosis pipeline
+(a real transcode producing a database row) is not yet confirmed live.
 
 ## Requirements
 
@@ -81,15 +82,35 @@ right after Sentinel starts — search the log for "Sentinel" after a restart.
 A proper admin dashboard is planned but not yet built — see the roadmap in
 [`JELLYFIN_SENTINEL_MASTER_PLAN.md`](./JELLYFIN_SENTINEL_MASTER_PLAN.md).
 
+## Verifying the diagnosis pipeline actually works
+
+Confirming the plugin loads (see "Current limitations") is not the same as confirming it
+correctly diagnoses a playback problem. To check that end to end:
+
+1. Play a piece of media on a client/codec combination you know forces a transcode (e.g. an HEVC
+   file on a client that only supports H.264, or a client with a low bitrate cap).
+2. Stop playback.
+3. Open `sentinel.db` (path from the server log, see above) with a SQLite browser and check the
+   `PlaybackEvent` table for a new row, then the `Diagnosis` table for a matching row with a
+   `Code` like `VIDEO_CODEC_UNSUPPORTED` and a non-empty `EvidenceJson`.
+
+If a `PlaybackEvent` row appears but no `Diagnosis` row does, that's not necessarily a bug — it
+means none of Sentinel's current rules matched (see "Only a narrow set of diagnoses so far"
+above). If neither row appears, something in the collection pipeline itself needs investigating —
+please open an issue with the relevant lines from Jellyfin's server log.
+
 ## Current limitations — read this before installing on a server you care about
 
 - **`v0.1.0-alpha` was tested against a live Jellyfin 12.1 server and failed** — it was disabled
-  with status "Malfunctioned" because of the native-library loading problem explained above. That
-  specific bug is fixed as of `v0.1.1.0`, but that fix has itself only been verified by code
-  inspection and a clean local build/test run — **it has not yet been confirmed against a real
-  server.** Every part of this plugin has been unit- and integration-tested against simulated
-  Jellyfin objects, which is exactly the kind of testing that missed the `v0.1.0-alpha` bug in the
-  first place, since simulated tests don't run inside Jellyfin's actual plugin-loading process.
+  with status "Malfunctioned" because of the native-library loading problem explained above.
+  **`v0.1.1.0` fixes it and is confirmed loading and running on a real Jellyfin 12.1 server** —
+  active status, config page rendering correctly. What's still unconfirmed live is the actual
+  playback-diagnosis pipeline: whether a real transcode produces a row in `sentinel.db` end to
+  end. Every part of this plugin has been unit- and integration-tested against simulated Jellyfin
+  objects, which is exactly the kind of testing that missed the `v0.1.0-alpha` loading bug in the
+  first place, since simulated tests don't run inside Jellyfin's actual plugin-loading process —
+  they can't provide the same confidence for the event-collection path either, hence this being
+  called out as a distinct, still-open item rather than assumed to work because loading now does.
 - **No dashboard, no notifications.** You have to read the SQLite database directly (see above).
 - **Only a narrow set of diagnoses so far.** Sentinel currently recognizes unsupported
   video/audio codecs, unsupported containers, unsupported secondary audio tracks, too many
