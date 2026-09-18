@@ -132,7 +132,7 @@ public sealed partial class DiagnosisRepository
                     PlayMethod = reader.GetString(10)
                 });
             }
-            catch (Exception ex) when (ex is ArgumentException or JsonException or FormatException)
+            catch (Exception ex) when (ex is ArgumentException or JsonException or FormatException or OverflowException)
             {
                 LogMalformedDiagnosisRowSkipped(_logger, id, ex.Message, ex);
             }
