@@ -8,9 +8,107 @@
         <div data-role="content">
             <div class="content-primary">
                 <h1>Jellyfin Sentinel</h1>
-                <p>Sentinel is running and observing playback sessions. The incident dashboard is not implemented yet — this page will be replaced by the Dashboard plan.</p>
+                <p>Recent playback diagnoses Sentinel has found. Click a row to see the evidence behind it. This is a minimal, read-only list — the full incident dashboard (severity, acknowledge/resolve, notifications) is planned but not yet built.</p>
+                <table class="detailTable" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Media</th>
+                            <th>Client / Device</th>
+                            <th>Confidence</th>
+                            <th>Explanation</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sentinelDiagnosesBody">
+                        <tr><td colspan="5">Loading…</td></tr>
+                    </tbody>
+                </table>
             </div>
         </div>
+        <script type="text/javascript">
+            (function () {
+                // jellyfin-web's view loader only keeps the div[data-role="page"] subtree when it
+                // parses this file (Emby.Server plugin config pages are not full documents to the
+                // SPA — everything outside this div, including a <script> placed as its sibling,
+                // is silently discarded before it ever runs). This script must stay INSIDE
+                // #SentinelConfigPage, matching the official jellyfin-plugin-template's own
+                // configPage.html, or the page loads and does nothing.
+                function escapeHtmlText(value) {
+                    var div = document.createElement('div');
+                    div.textContent = value === null || value === undefined ? '' : String(value);
+                    return div.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                }
+
+                function buildEvidenceList(evidence) {
+                    if (!evidence || evidence.length === 0) {
+                        return '<li>(no evidence recorded)</li>';
+                    }
+
+                    return evidence.map(function (item) {
+                        return '<li>' + escapeHtmlText(item) + '</li>';
+                    }).join('');
+                }
+
+                function appendDiagnosisRows(tbody, diagnosis) {
+                    // Property names below are PascalCase on purpose: Jellyfin's API serializes
+                    // JSON with PascalCase property names by default (no camelCase conversion),
+                    // matching the C# property names exactly — verified against Jellyfin's own
+                    // JsonDefaults/PascalCaseJsonProfileFormatter and confirmed by how
+                    // jellyfin-plugin-playbackreporting's own client-side JS reads its API
+                    // responses (matching its controller's exact casing, not auto-camelCased).
+                    var summaryRow = document.createElement('tr');
+                    summaryRow.style.cursor = 'pointer';
+                    summaryRow.innerHTML =
+                        '<td>' + escapeHtmlText(new Date(diagnosis.CreatedAtUtc).toLocaleString()) + '</td>' +
+                        '<td>' + escapeHtmlText(diagnosis.MediaName) + '</td>' +
+                        '<td>' + escapeHtmlText(diagnosis.Client) + ' / ' + escapeHtmlText(diagnosis.DeviceName) + '</td>' +
+                        '<td>' + escapeHtmlText(diagnosis.Confidence) + '</td>' +
+                        '<td>' + escapeHtmlText(diagnosis.Explanation) + '</td>';
+
+                    var detailRow = document.createElement('tr');
+                    detailRow.style.display = 'none';
+                    var detailCell = document.createElement('td');
+                    detailCell.colSpan = 5;
+                    detailCell.style.paddingLeft = '2em';
+                    detailCell.innerHTML =
+                        '<strong>Evidence:</strong><ul>' + buildEvidenceList(diagnosis.Evidence) + '</ul>' +
+                        '<strong>Recommendation:</strong> ' + escapeHtmlText(diagnosis.Recommendation) +
+                        '<div><em>Code: ' + escapeHtmlText(diagnosis.Code) + '</em></div>';
+                    detailRow.appendChild(detailCell);
+
+                    summaryRow.addEventListener('click', function () {
+                        detailRow.style.display = detailRow.style.display === 'none' ? '' : 'none';
+                    });
+
+                    tbody.appendChild(summaryRow);
+                    tbody.appendChild(detailRow);
+                }
+
+                function loadDiagnoses() {
+                    var tbody = document.querySelector('#sentinelDiagnosesBody');
+                    var url = ApiClient.getUrl('Sentinel/diagnoses');
+
+                    ApiClient.ajax({ type: 'GET', url: url, dataType: 'json' }).then(function (diagnoses) {
+                        tbody.innerHTML = '';
+
+                        if (!diagnoses || diagnoses.length === 0) {
+                            tbody.innerHTML = '<tr><td colspan="5">No diagnoses yet — Sentinel only records a diagnosis when a session actually transcoded for a reason its current rules recognize.</td></tr>';
+                            return;
+                        }
+
+                        diagnoses.forEach(function (diagnosis) {
+                            appendDiagnosisRows(tbody, diagnosis);
+                        });
+                    }).catch(function () {
+                        tbody.innerHTML = '<tr><td colspan="5">Failed to load diagnoses. Check Jellyfin\'s server log for details.</td></tr>';
+                    });
+                }
+
+                document.querySelector('#SentinelConfigPage').addEventListener('pageshow', function () {
+                    loadDiagnoses();
+                });
+            })();
+        </script>
     </div>
 </body>
 </html>

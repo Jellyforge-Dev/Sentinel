@@ -3,6 +3,7 @@ using System.IO;
 using Jellyfin.Plugin.Sentinel.Domain;
 using Jellyfin.Plugin.Sentinel.Persistence;
 using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace Jellyfin.Plugin.Sentinel.Tests.Persistence;
@@ -22,7 +23,7 @@ public class SentinelDatabaseTests : IDisposable
     public void InsertAndReadBack_PlaybackEventAndDiagnosis_RoundTrips()
     {
         var playbackEventRepository = new PlaybackEventRepository(_database);
-        var diagnosisRepository = new DiagnosisRepository(_database);
+        var diagnosisRepository = new DiagnosisRepository(_database, NullLogger<DiagnosisRepository>.Instance);
 
         var playbackEvent = new PlaybackEvent
         {
