@@ -13,6 +13,14 @@
     <PackageReference Include="Moq" Version="4.20.72" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+    <!--
+      The plugin project excludes the runtime assets of these packages (Jellyfin provides
+      them at the host's runtime). Tests actually execute code from them (e.g. constructing
+      SessionInfo), so this project needs its own full reference to get the DLLs copied to
+      the test output directory.
+    -->
+    <PackageReference Include="Jellyfin.Controller" Version="12.1.0" />
+    <PackageReference Include="Jellyfin.Model" Version="12.1.0" />
   </ItemGroup>
 
   <ItemGroup>
