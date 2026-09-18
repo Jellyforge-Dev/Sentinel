@@ -50,7 +50,12 @@
                 }
 
                 function buildKnownIssueBlock(diagnosis) {
-                    if (!diagnosis.KnownIssueUrl) {
+                    // The https:// check is defense in depth, not a currently-exploitable gap:
+                    // today's only KnownIssueUrl values come from a hardcoded server-side table
+                    // (KnownCoreIssues.cs), not user input. It guards against a future version of
+                    // that table becoming configurable or remote-loaded ever allowing a
+                    // javascript: URL to reach this href unnoticed.
+                    if (!diagnosis.KnownIssueUrl || !/^https:\/\//.test(diagnosis.KnownIssueUrl)) {
                         return '';
                     }
 

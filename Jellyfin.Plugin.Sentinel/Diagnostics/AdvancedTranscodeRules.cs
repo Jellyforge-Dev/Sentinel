@@ -39,13 +39,18 @@ public static class AdvancedTranscodeRules
             Predicate: e => e.PlayMethod == PlayMethod.Transcode
                 && e.TranscodeReasons.HasFlag(TranscodeReason.VideoRangeTypeNotSupported),
             Confidence: Confidence.Likely,
-            Explain: e => "This video's HDR format (or other dynamic range type) isn't supported by your device, so Jellyfin had to tone-map and transcode it.",
+            Explain: e => "This video's HDR format (or other dynamic range type) isn't supported by your device, so Jellyfin had to convert it (typically including tone-mapping).",
             Recommendation: "No action needed unless playback quality or server load is a problem — this is expected for this client/HDR-format combination."),
 
         new(
+            // Master plan item #16 specifically says "with no other reason" — unlike
+            // EXTERNAL_AUDIO_FORCED_TRANSCODE/HDR_TONE_MAPPING_TRANSCODE above, this rule
+            // requires exact equality (AudioChannelsNotSupported and nothing else), not just
+            // HasFlag, so it never co-fires alongside a stronger, more specific Confirmed-tier
+            // rule from CoreTranscodeRules (e.g. VideoCodecNotSupported) for the same event.
             Code: "AUDIO_CHANNEL_DOWNMIX",
             Predicate: e => e.PlayMethod == PlayMethod.Transcode
-                && e.TranscodeReasons.HasFlag(TranscodeReason.AudioChannelsNotSupported),
+                && e.TranscodeReasons == TranscodeReason.AudioChannelsNotSupported,
             Confidence: Confidence.Possible,
             Explain: e => "This file's audio has more channels than your device/output supports, so Jellyfin had to downmix (and transcode) it.",
             Recommendation: "No action needed — this is expected behavior for this client/channel-layout combination."),

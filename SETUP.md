@@ -135,12 +135,17 @@ please open an issue with the relevant lines from Jellyfin's server log.
   video/audio codecs, unsupported containers, unsupported secondary audio tracks, too many
   streams, external audio tracks, HDR/dynamic-range mismatches, audio channel downmixing,
   bitrate-only transcodes, resolution-only transcodes, and "transcoded but Jellyfin didn't say
-  why." Not yet covered: subtitle burn-in (needs subtitle-stream data this plugin doesn't
-  collect yet), repeated-transcode-pattern detection and client-version-regression detection
-  (both need a not-yet-built incident/history system), and a few explicitly experimental or
-  unverified diagnoses from the original project plan (hardware-transcode-unavailable,
-  mid-session direct-play failure, client-capability-gap, remote-bandwidth-limit) that need
-  further research before they can be built without guessing. An unrecognized transcode is
+  why." Still not covered by any rule at all: video profile/level/bit-depth/framerate/rotation
+  mismatches, reference-frame or anamorphic/interlaced video issues, audio profile/sample-rate/
+  bit-depth mismatches, subtitle codec mismatches other than burn-in, and a few rarer reasons —
+  a transcode caused by one of these is recorded (the raw reason is visible in the database) but
+  won't show a diagnosis on the dashboard yet. Also not yet covered: subtitle burn-in (needs
+  subtitle-stream data this plugin doesn't collect yet), repeated-transcode-pattern detection and
+  client-version-regression detection (both need a not-yet-built incident/history system), and a
+  few explicitly experimental or unverified diagnoses from the original project plan
+  (hardware-transcode-unavailable, mid-session direct-play failure, client-capability-gap,
+  remote-bandwidth-limit) that need further research before they can be built without guessing.
+  An unrecognized transcode is
   simply not diagnosed, not misdiagnosed.
 - **Known Jellyfin core bugs are now called out separately.** When a diagnosis code has a
   matching entry in Sentinel's curated Known Core Issues table (currently just
