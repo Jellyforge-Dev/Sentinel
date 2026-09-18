@@ -1,8 +1,8 @@
 # Setting up Jellyfin Sentinel
 
 This document is for people who want to install and run Sentinel today. Read the "Current
-limitations" section before you do — this is pre-release software that has not yet been verified
-against a live Jellyfin server.
+limitations" section before you do — this is pre-release software, and the fix for the one known
+live-server failure so far has not itself been confirmed on a real server yet.
 
 ## Requirements
 
@@ -44,7 +44,21 @@ If you're testing an unreleased build:
    the `runtimes/` subfolder — into that `Sentinel` folder. Copying only the `.dll` will make the
    plugin fail to load, since it depends on the SQLite packages listed in
    [`Jellyfin.Plugin.Sentinel/build.yaml`](./Jellyfin.Plugin.Sentinel/build.yaml).
-5. Restart Jellyfin and check its server log for a line from Sentinel confirming it started and
+5. **In the copy inside the `Sentinel` plugin folder** (not in your build output), delete every
+   subfolder under `runtimes/` except the six Sentinel actually supports — `win-x64`, `win-arm64`,
+   `linux-x64`, `linux-arm64`, `osx-x64`, `osx-arm64`. `dotnet publish` produces many more RID
+   folders than that (e.g. `win-x86`, `linux-arm`, `linux-musl-x64`), and Jellyfin's plugin loader
+   globs every `*.dll` file **anywhere** under the plugin folder — including ones you'll never run
+   on — and tries to load each one as a managed .NET assembly. Any leftover native `.dll` there
+   crashes the whole plugin with `BadImageFormatException`. This is real, not theoretical: it's
+   exactly how `v0.1.0-alpha` broke on a live server.
+6. **Then rename the two Windows native SQLite files** — `runtimes/win-x64/native/e_sqlite3.dll`
+   and `runtimes/win-arm64/native/e_sqlite3.dll` — to `e_sqlite3.dll.win`. This is the other half
+   of the same problem: even the *correct*-platform Windows file matches Jellyfin's `*.dll` glob
+   unless renamed. See the comment above `artifacts:` in `build.yaml` for the full explanation.
+   Linux (`.so`) and macOS (`.dylib`) files don't need renaming — their extensions never match
+   that glob.
+7. Restart Jellyfin and check its server log for a line from Sentinel confirming it started and
    showing the database path it resolved (see below).
 
 ## What Sentinel actually does once installed
@@ -69,10 +83,13 @@ A proper admin dashboard is planned but not yet built — see the roadmap in
 
 ## Current limitations — read this before installing on a server you care about
 
-- **Not yet tested against a live Jellyfin server.** Every part of this plugin has been unit- and
-  integration-tested against simulated Jellyfin objects, but nobody has installed it on a real,
-  running Jellyfin 12.1 server yet. It should install and run without issue, but "should" is not
-  "has."
+- **`v0.1.0-alpha` was tested against a live Jellyfin 12.1 server and failed** — it was disabled
+  with status "Malfunctioned" because of the native-library loading problem explained above. That
+  specific bug is fixed as of `v0.1.1.0`, but that fix has itself only been verified by code
+  inspection and a clean local build/test run — **it has not yet been confirmed against a real
+  server.** Every part of this plugin has been unit- and integration-tested against simulated
+  Jellyfin objects, which is exactly the kind of testing that missed the `v0.1.0-alpha` bug in the
+  first place, since simulated tests don't run inside Jellyfin's actual plugin-loading process.
 - **No dashboard, no notifications.** You have to read the SQLite database directly (see above).
 - **Only a narrow set of diagnoses so far.** Sentinel currently recognizes unsupported
   video/audio codecs, unsupported containers, unsupported secondary audio tracks, too many
@@ -99,7 +116,14 @@ There is no CI automation for this yet — releases are cut manually:
 2. `dotnet publish Jellyfin.Plugin.Sentinel/Jellyfin.Plugin.Sentinel.csproj -c Release`.
 3. Zip **exactly** the files listed under `artifacts:` in `build.yaml` (that list is a verified,
    strict copy-filter matching what JPRM would produce — don't just zip the whole publish
-   folder without checking it still matches).
+   folder without checking it still matches). **The two Windows native SQLite files must be
+   renamed** from `e_sqlite3.dll` to `e_sqlite3.dll.win` when staging them into the zip —
+   `dotnet publish` does not do this renaming itself, it's a packaging-time step. See the long
+   comment above `artifacts:` in `build.yaml` for why this is required at all. Because you're
+   staging exactly the `artifacts:` list rather than the raw publish folder, the unsupported RID
+   folders (`win-x86`, `linux-arm`, etc.) are never included in the first place — that risk only
+   applies to the "manual install from raw publish output" path above, not to a properly-packaged
+   release.
 4. Compute the zip's MD5 checksum (`md5sum <file>.zip` or equivalent).
 5. Create a GitHub Release with that tag/version, uploading the zip as a release asset.
 6. Add a new entry to the `versions` array in [`manifest.json`](./manifest.json): `version`

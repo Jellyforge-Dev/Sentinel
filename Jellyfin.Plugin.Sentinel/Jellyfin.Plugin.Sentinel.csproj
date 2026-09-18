@@ -17,6 +17,10 @@
       <ExcludeAssets>runtime</ExcludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.12" />
+    <!-- Referenced directly (not just transitively via Microsoft.Data.Sqlite) because Plugin.cs
+         needs a compile-time type from this assembly to register a custom native-library
+         resolver — see the comment in Plugin.cs for why that resolver is required at all. -->
+    <PackageReference Include="SQLitePCLRaw.provider.e_sqlite3" Version="2.1.12" />
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.11">
       <ExcludeAssets>runtime</ExcludeAssets>
     </PackageReference>

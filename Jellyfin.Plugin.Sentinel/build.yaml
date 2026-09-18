@@ -1,7 +1,7 @@
 ---
 name: "Sentinel"
 guid: "4b5e3a79-7798-4066-841e-db7eb0125dc9"
-version: "0.1.0.0"
+version: "0.1.1.0"
 targetAbi: "12.1.0.0"
 framework: "net10.0"
 overview: "Evidence-based root-cause diagnosis for Jellyfin playback problems"
@@ -17,7 +17,8 @@ owner: "Jellyforge-Dev"
 # subfolder structure in the entry's own path. Nothing outside this list is ever included,
 # so this is a strict copy-filter, not just descriptive metadata about the package contents.
 # Verified against `dotnet publish -c Release` output on 2026-09-18 (Microsoft.Data.Sqlite
-# 10.0.12 / SQLitePCLRaw 3.x, matching the PackageReference versions in the .csproj) — the
+# 10.0.12 / SQLitePCLRaw.provider.e_sqlite3 2.1.12, matching the PackageReference versions in
+# the .csproj) — the
 # managed assemblies below plus a `runtimes/<rid>/native/` folder are what the publish step
 # actually produces. If the SQLite package version ever changes, re-run publish and re-check
 # this list rather than assuming it's still accurate.
@@ -30,17 +31,40 @@ owner: "Jellyforge-Dev"
 # entries nested under `runtimes/`, matches other Jellyfin plugins that ship a native
 # dependency (e.g. unfedorg/jellyfin-plugin-pdfcover's build.yaml lists
 # `runtimes/<rid>/native/libpdfium.*` the same way).
+#
+# IMPORTANT — confirmed via a live-server install (2026-09-18): Jellyfin's own PluginManager
+# (Emby.Server.Implementations.Plugins.PluginManager.TryGetPluginDlls) recursively globs every
+# *.dll file anywhere under the plugin's folder and tries to load each one as a managed .NET
+# assembly. The two Windows native SQLite libraries below are therefore packaged with a
+# ".dll.win" extension, NOT ".dll" — a plain "e_sqlite3.dll" here gets picked up by that glob
+# and crashes the whole plugin with a BadImageFormatException the instant Jellyfin tries to
+# load it as managed code (real error: "Failed to load assembly
+# .../runtimes/win-arm64/native/e_sqlite3.dll ... System.BadImageFormatException"). Linux
+# (.so) and macOS (.dylib) files are unaffected by this glob and keep their normal extensions.
+# Plugin.cs registers a NativeLibrary.SetDllImportResolver that knows to look for the renamed
+# file on Windows — see the comment in its constructor. This exact ".dll.win" renaming
+# technique is the one unfedorg/jellyfin-plugin-pdfcover uses for the identical problem with
+# its own native dependency.
 artifacts:
 - "Jellyfin.Plugin.Sentinel.dll"
 - "Microsoft.Data.Sqlite.dll"
 - "SQLitePCLRaw.core.dll"
 - "SQLitePCLRaw.batteries_v2.dll"
 - "SQLitePCLRaw.provider.e_sqlite3.dll"
-- "runtimes/win-x64/native/e_sqlite3.dll"
-- "runtimes/win-arm64/native/e_sqlite3.dll"
+- "runtimes/win-x64/native/e_sqlite3.dll.win"
+- "runtimes/win-arm64/native/e_sqlite3.dll.win"
 - "runtimes/linux-x64/native/libe_sqlite3.so"
 - "runtimes/linux-arm64/native/libe_sqlite3.so"
 - "runtimes/osx-x64/native/libe_sqlite3.dylib"
 - "runtimes/osx-arm64/native/libe_sqlite3.dylib"
 changelog: >
-  Initial foundation: playback observation, rule engine, SQLite persistence.
+  0.1.1.0: Fix for a confirmed bug in 0.1.0.0 — real Jellyfin 12.1 install testing showed the
+  plugin gets disabled with status "Malfunctioned", because Jellyfin's plugin loader tried to
+  load the native Windows SQLite library as a managed .NET assembly (BadImageFormatException)
+  and provides no automatic native-library resolution on any platform. The Windows library now
+  ships as e_sqlite3.dll.win, and Plugin.cs registers a manual native-library resolver for all
+  platforms. This fix has been verified by code inspection and a clean local build/test run;
+  it has NOT yet been independently confirmed against a real server — do not treat 0.1.1.0 as
+  proven working until that happens.
+  0.1.0.0: Initial foundation: playback observation, rule engine, SQLite persistence.
+  Confirmed broken on a real Jellyfin 12.1 server — see 0.1.1.0.
