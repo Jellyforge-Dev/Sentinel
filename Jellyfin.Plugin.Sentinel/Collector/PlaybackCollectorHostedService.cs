@@ -57,6 +57,7 @@ public sealed partial class PlaybackCollectorHostedService : IHostedService
     public Task StartAsync(CancellationToken cancellationToken)
     {
         _sessionManager.PlaybackStopped += OnPlaybackStopped;
+        LogCollectorStarted(_logger);
         return Task.CompletedTask;
     }
 
@@ -69,22 +70,42 @@ public sealed partial class PlaybackCollectorHostedService : IHostedService
 
     private void OnPlaybackStopped(object? sender, PlaybackStopEventArgs args)
     {
-        var playbackEvent = PlaybackEventFactory.FromEventArgs(args);
-        if (playbackEvent is null)
+        // This handler runs directly on Jellyfin's own event-invocation thread. An unhandled
+        // exception here (e.g. a SqliteException from a full disk or a locked file) would
+        // propagate back into Jellyfin's own playback-stop code path and could break Jellyfin's
+        // own bookkeeping for the session (such as saving resume position). Never let anything
+        // escape this handler.
+        try
         {
-            return;
+            var playbackEvent = PlaybackEventFactory.FromEventArgs(args);
+            if (playbackEvent is null)
+            {
+                return;
+            }
+
+            var playbackEventId = _playbackEventRepository.Insert(playbackEvent);
+            var diagnoses = _ruleEngine.Diagnose(playbackEvent);
+
+            foreach (var diagnosis in diagnoses)
+            {
+                _diagnosisRepository.Insert(playbackEventId, diagnosis);
+                LogDiagnosis(_logger, diagnosis.Code, diagnosis.Confidence, playbackEvent.SessionId);
+            }
         }
-
-        var playbackEventId = _playbackEventRepository.Insert(playbackEvent);
-        var diagnoses = _ruleEngine.Diagnose(playbackEvent);
-
-        foreach (var diagnosis in diagnoses)
+#pragma warning disable CA1031
+        catch (Exception ex)
         {
-            _diagnosisRepository.Insert(playbackEventId, diagnosis);
-            LogDiagnosis(_logger, diagnosis.Code, diagnosis.Confidence, playbackEvent.SessionId);
+            LogPlaybackStoppedHandlerFailed(_logger, ex);
         }
+#pragma warning restore CA1031
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Sentinel diagnosis {Code} ({Confidence}) for session {SessionId}")]
     private static partial void LogDiagnosis(ILogger logger, string code, Confidence confidence, string sessionId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Sentinel playback collector started and subscribed to playback-stopped events")]
+    private static partial void LogCollectorStarted(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Sentinel failed to process a playback-stopped event; Jellyfin's own playback handling was not affected")]
+    private static partial void LogPlaybackStoppedHandlerFailed(ILogger logger, Exception exception);
 }

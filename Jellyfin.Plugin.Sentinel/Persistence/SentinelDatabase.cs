@@ -30,6 +30,16 @@ public sealed class SentinelDatabase
     {
         var connection = new SqliteConnection(_connectionString);
         connection.Open();
+
+        using (var pragmaCommand = connection.CreateCommand())
+        {
+            // SQLite does not enforce FOREIGN KEY constraints unless explicitly turned on
+            // per-connection, so every connection opened through this single choke point
+            // gets it enabled.
+            pragmaCommand.CommandText = "PRAGMA foreign_keys = ON;";
+            pragmaCommand.ExecuteNonQuery();
+        }
+
         return connection;
     }
 
@@ -67,6 +77,7 @@ public sealed class SentinelDatabase
                 FOREIGN KEY (PlaybackEventId) REFERENCES PlaybackEvent(Id)
             );
             CREATE INDEX IF NOT EXISTS IX_Diagnosis_Code ON Diagnosis(Code);
+            CREATE INDEX IF NOT EXISTS IX_Diagnosis_PlaybackEventId ON Diagnosis(PlaybackEventId);
             """;
         command.ExecuteNonQuery();
     }
