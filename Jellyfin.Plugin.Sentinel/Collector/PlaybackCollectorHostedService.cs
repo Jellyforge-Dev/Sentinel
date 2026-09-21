@@ -65,6 +65,7 @@ public sealed partial class PlaybackCollectorHostedService : IHostedService
     private readonly RuleEngine _ruleEngine;
     private readonly PlaybackEventRepository _playbackEventRepository;
     private readonly DiagnosisRepository _diagnosisRepository;
+    private readonly IncidentRepository _incidentRepository;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<PlaybackCollectorHostedService> _logger;
     private readonly ConcurrentDictionary<string, PlaybackProgressSnapshot> _lastKnownPlaybackState = new();
@@ -83,6 +84,7 @@ public sealed partial class PlaybackCollectorHostedService : IHostedService
     /// <param name="ruleEngine">The rule engine used to diagnose playback events.</param>
     /// <param name="playbackEventRepository">The repository used to persist playback events.</param>
     /// <param name="diagnosisRepository">The repository used to persist diagnoses.</param>
+    /// <param name="incidentRepository">The repository used to track incidents derived from diagnoses.</param>
     /// <param name="timeProvider">The time provider used for the snapshot-cache TTL sweep.</param>
     /// <param name="logger">The logger.</param>
     /// <exception cref="ArgumentNullException">Thrown when any parameter is null.</exception>
@@ -91,6 +93,7 @@ public sealed partial class PlaybackCollectorHostedService : IHostedService
         RuleEngine ruleEngine,
         PlaybackEventRepository playbackEventRepository,
         DiagnosisRepository diagnosisRepository,
+        IncidentRepository incidentRepository,
         TimeProvider timeProvider,
         ILogger<PlaybackCollectorHostedService> logger)
     {
@@ -98,6 +101,7 @@ public sealed partial class PlaybackCollectorHostedService : IHostedService
         ArgumentNullException.ThrowIfNull(ruleEngine);
         ArgumentNullException.ThrowIfNull(playbackEventRepository);
         ArgumentNullException.ThrowIfNull(diagnosisRepository);
+        ArgumentNullException.ThrowIfNull(incidentRepository);
         ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentNullException.ThrowIfNull(logger);
 
@@ -105,6 +109,7 @@ public sealed partial class PlaybackCollectorHostedService : IHostedService
         _ruleEngine = ruleEngine;
         _playbackEventRepository = playbackEventRepository;
         _diagnosisRepository = diagnosisRepository;
+        _incidentRepository = incidentRepository;
         _timeProvider = timeProvider;
         _logger = logger;
     }
@@ -234,7 +239,8 @@ public sealed partial class PlaybackCollectorHostedService : IHostedService
 
             foreach (var diagnosis in diagnoses)
             {
-                _diagnosisRepository.Insert(playbackEventId, diagnosis);
+                var diagnosisId = _diagnosisRepository.Insert(playbackEventId, diagnosis);
+                _incidentRepository.UpsertOnDiagnosis(diagnosisId, diagnosis.Code, playbackEvent.ItemId, playbackEvent.Client, playbackEvent.DeviceName);
                 LogDiagnosis(_logger, diagnosis.Code, diagnosis.Confidence, playbackEvent.SessionId);
             }
         }
