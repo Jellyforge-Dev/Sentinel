@@ -38,4 +38,8 @@
     <EmbeddedResource Include="Configuration\configPage.html" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Localization\Strings\*.json" />
+  </ItemGroup>
+
 </Project>
