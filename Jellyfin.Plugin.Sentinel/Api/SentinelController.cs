@@ -116,6 +116,7 @@ public class SentinelController : ControllerBase
                 Explanation = diagnosis?.Explanation,
                 Recommendation = diagnosis?.Recommendation,
                 Evidence = diagnosis?.Evidence,
+                Confidence = diagnosis?.Confidence.ToString(),
                 KnownIssueUrl = knownIssue?.IssueUrl,
                 KnownIssueExplanation = knownIssue?.Explanation
             };
@@ -163,7 +164,11 @@ public class SentinelController : ControllerBase
             "UI_TITLE", "UI_INTRO", "UI_COL_TIME", "UI_COL_MEDIA", "UI_COL_CLIENT_DEVICE",
             "UI_COL_CONFIDENCE", "UI_COL_EXPLANATION", "UI_LOADING", "UI_NO_DIAGNOSES",
             "UI_LOAD_FAILED", "UI_EVIDENCE_LABEL", "UI_RECOMMENDATION_LABEL", "UI_CODE_LABEL",
-            "UI_KNOWN_ISSUE_LABEL"
+            "UI_KNOWN_ISSUE_LABEL",
+            "UI_COL_STATUS", "UI_COL_OCCURRENCES", "UI_COL_FIRST_SEEN", "UI_COL_LAST_SEEN",
+            "UI_ACKNOWLEDGE_BUTTON", "UI_RESOLVE_BUTTON",
+            "UI_STATUS_DETECTED", "UI_STATUS_ACKNOWLEDGED", "UI_STATUS_RESOLVED", "UI_STATUS_REOPENED",
+            "UI_NO_INCIDENTS", "UI_LOAD_INCIDENTS_FAILED"
         };
 
         var result = keys.ToDictionary(key => key, key => _localizationService.Translate(key, language));

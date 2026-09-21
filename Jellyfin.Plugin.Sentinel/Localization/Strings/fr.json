@@ -22,7 +22,7 @@
   "RESOLUTION_DOWNSCALE_ONLY_EXPLANATION": "La résolution de cette vidéo dépasse ce que permet votre connexion ou votre appareil, Jellyfin a donc dû la réduire (et la transcoder) — aucune incompatibilité de codec ou de format n'était en cause.",
   "RESOLUTION_DOWNSCALE_ONLY_RECOMMENDATION": "Il s'agit d'une limite réseau/appareil, pas d'un problème de format — une version de ce titre en résolution inférieure serait lue directement (direct play).",
   "UI_TITLE": "Jellyfin Sentinel",
-  "UI_INTRO": "Diagnostics de lecture récents détectés par Sentinel. Cliquez sur une ligne pour voir les preuves qui l'étayent. Il s'agit d'une liste minimale, en lecture seule — le tableau de bord complet des incidents (gravité, accusé de réception/résolution, notifications) est prévu mais pas encore développé.",
+  "UI_INTRO": "Incidents détectés par Sentinel, regroupés par média, client et appareil. Cliquez sur une carte pour voir les preuves.",
   "UI_COL_TIME": "Heure",
   "UI_COL_MEDIA": "Média",
   "UI_COL_CLIENT_DEVICE": "Client / Appareil",
@@ -34,5 +34,17 @@
   "UI_EVIDENCE_LABEL": "Preuves :",
   "UI_RECOMMENDATION_LABEL": "Recommandation :",
   "UI_CODE_LABEL": "Code :",
-  "UI_KNOWN_ISSUE_LABEL": "Bug Jellyfin connu (ce n'est pas un diagnostic Sentinel) :"
+  "UI_KNOWN_ISSUE_LABEL": "Bug Jellyfin connu (ce n'est pas un diagnostic Sentinel) :",
+  "UI_COL_STATUS": "Statut",
+  "UI_COL_OCCURRENCES": "Occurrences",
+  "UI_COL_FIRST_SEEN": "Première détection",
+  "UI_COL_LAST_SEEN": "Dernière détection",
+  "UI_ACKNOWLEDGE_BUTTON": "Accuser réception",
+  "UI_RESOLVE_BUTTON": "Résoudre",
+  "UI_STATUS_DETECTED": "Détecté",
+  "UI_STATUS_ACKNOWLEDGED": "Pris en compte",
+  "UI_STATUS_RESOLVED": "Résolu",
+  "UI_STATUS_REOPENED": "Réouvert",
+  "UI_NO_INCIDENTS": "Aucun incident pour l'instant — Sentinel n'enregistre un incident que lorsqu'une session a réellement été transcodée pour une raison reconnue par ses règles actuelles.",
+  "UI_LOAD_INCIDENTS_FAILED": "Échec du chargement des incidents. Consultez le journal du serveur Jellyfin pour plus de détails."
 }

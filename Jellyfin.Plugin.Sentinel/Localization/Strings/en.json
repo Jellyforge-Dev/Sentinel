@@ -22,7 +22,7 @@
   "RESOLUTION_DOWNSCALE_ONLY_EXPLANATION": "This video's resolution is above what your connection or device allows, so Jellyfin had to downscale (and transcode) it — no codec or format mismatch was involved.",
   "RESOLUTION_DOWNSCALE_ONLY_RECOMMENDATION": "This is a network/device limit, not a format problem — a lower-resolution version of this title would direct play.",
   "UI_TITLE": "Jellyfin Sentinel",
-  "UI_INTRO": "Recent playback diagnoses Sentinel has found. Click a row to see the evidence behind it. This is a minimal, read-only list — the full incident dashboard (severity, acknowledge/resolve, notifications) is planned but not yet built.",
+  "UI_INTRO": "Incidents Sentinel has detected, grouped by media, client, and device. Click a card to see the evidence behind it.",
   "UI_COL_TIME": "Time",
   "UI_COL_MEDIA": "Media",
   "UI_COL_CLIENT_DEVICE": "Client / Device",
@@ -34,5 +34,17 @@
   "UI_EVIDENCE_LABEL": "Evidence:",
   "UI_RECOMMENDATION_LABEL": "Recommendation:",
   "UI_CODE_LABEL": "Code:",
-  "UI_KNOWN_ISSUE_LABEL": "Known Jellyfin Bug (not a Sentinel diagnosis):"
+  "UI_KNOWN_ISSUE_LABEL": "Known Jellyfin Bug (not a Sentinel diagnosis):",
+  "UI_COL_STATUS": "Status",
+  "UI_COL_OCCURRENCES": "Occurrences",
+  "UI_COL_FIRST_SEEN": "First Seen",
+  "UI_COL_LAST_SEEN": "Last Seen",
+  "UI_ACKNOWLEDGE_BUTTON": "Acknowledge",
+  "UI_RESOLVE_BUTTON": "Resolve",
+  "UI_STATUS_DETECTED": "Detected",
+  "UI_STATUS_ACKNOWLEDGED": "Acknowledged",
+  "UI_STATUS_RESOLVED": "Resolved",
+  "UI_STATUS_REOPENED": "Reopened",
+  "UI_NO_INCIDENTS": "No incidents yet — Sentinel only records an incident when a session actually transcoded for a reason its current rules recognize.",
+  "UI_LOAD_INCIDENTS_FAILED": "Failed to load incidents. Check Jellyfin's server log for details."
 }

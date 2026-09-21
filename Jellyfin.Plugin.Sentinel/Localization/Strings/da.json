@@ -22,7 +22,7 @@
   "RESOLUTION_DOWNSCALE_ONLY_EXPLANATION": "Denne videos opløsning er højere, end din forbindelse eller enhed tillader, så Jellyfin var nødt til at nedskalere (og transkode) den — der var ikke tale om en codec- eller formatuoverensstemmelse.",
   "RESOLUTION_DOWNSCALE_ONLY_RECOMMENDATION": "Det er en netværks-/enhedsbegrænsning, ikke et formatproblem — en version af denne titel med lavere opløsning ville blive afspillet direkte (direct play).",
   "UI_TITLE": "Jellyfin Sentinel",
-  "UI_INTRO": "De seneste afspilningsdiagnoser, som Sentinel har fundet. Klik på en række for at se beviserne bag den. Dette er en minimal, skrivebeskyttet liste — det fulde hændelsesdashboard (alvorlighed, kvittér/løs, notifikationer) er planlagt, men endnu ikke bygget.",
+  "UI_INTRO": "Hændelser, som Sentinel har registreret, grupperet efter medie, klient og enhed. Klik på et kort for at se beviserne.",
   "UI_COL_TIME": "Tid",
   "UI_COL_MEDIA": "Medie",
   "UI_COL_CLIENT_DEVICE": "Klient / Enhed",
@@ -34,5 +34,17 @@
   "UI_EVIDENCE_LABEL": "Beviser:",
   "UI_RECOMMENDATION_LABEL": "Anbefaling:",
   "UI_CODE_LABEL": "Kode:",
-  "UI_KNOWN_ISSUE_LABEL": "Kendt Jellyfin-fejl (ikke en Sentinel-diagnose):"
+  "UI_KNOWN_ISSUE_LABEL": "Kendt Jellyfin-fejl (ikke en Sentinel-diagnose):",
+  "UI_COL_STATUS": "Status",
+  "UI_COL_OCCURRENCES": "Forekomster",
+  "UI_COL_FIRST_SEEN": "Først set",
+  "UI_COL_LAST_SEEN": "Sidst set",
+  "UI_ACKNOWLEDGE_BUTTON": "Bekræft",
+  "UI_RESOLVE_BUTTON": "Løs",
+  "UI_STATUS_DETECTED": "Registreret",
+  "UI_STATUS_ACKNOWLEDGED": "Bekræftet",
+  "UI_STATUS_RESOLVED": "Løst",
+  "UI_STATUS_REOPENED": "Genåbnet",
+  "UI_NO_INCIDENTS": "Ingen hændelser endnu — Sentinel registrerer kun en hændelse, når en session faktisk blev transkodet af en grund, de nuværende regler genkender.",
+  "UI_LOAD_INCIDENTS_FAILED": "Hændelser kunne ikke indlæses. Se Jellyfins serverlog for detaljer."
 }

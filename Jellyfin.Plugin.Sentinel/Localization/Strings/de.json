@@ -22,7 +22,7 @@
   "RESOLUTION_DOWNSCALE_ONLY_EXPLANATION": "Die Auflösung dieses Videos liegt über dem, was Ihre Verbindung oder Ihr Gerät zulässt, weshalb Jellyfin sie herunterskalieren (und transkodieren) musste — es lag keine Codec- oder Formatinkompatibilität vor.",
   "RESOLUTION_DOWNSCALE_ONLY_RECOMMENDATION": "Das ist eine Netzwerk-/Gerätebeschränkung, kein Formatproblem — eine Version dieses Titels mit niedrigerer Auflösung würde direkt abgespielt (Direct Play).",
   "UI_TITLE": "Jellyfin Sentinel",
-  "UI_INTRO": "Die neuesten von Sentinel gefundenen Wiedergabediagnosen. Klicken Sie auf eine Zeile, um die zugrunde liegenden Belege zu sehen. Dies ist eine minimale, schreibgeschützte Liste — das vollständige Vorfalls-Dashboard (Schweregrad, Bestätigen/Beheben, Benachrichtigungen) ist geplant, aber noch nicht umgesetzt.",
+  "UI_INTRO": "Von Sentinel erkannte Vorfälle, gruppiert nach Medium, Client und Gerät. Klicke auf eine Karte, um die zugrunde liegenden Belege zu sehen.",
   "UI_COL_TIME": "Zeit",
   "UI_COL_MEDIA": "Medium",
   "UI_COL_CLIENT_DEVICE": "Client / Gerät",
@@ -34,5 +34,17 @@
   "UI_EVIDENCE_LABEL": "Belege:",
   "UI_RECOMMENDATION_LABEL": "Empfehlung:",
   "UI_CODE_LABEL": "Code:",
-  "UI_KNOWN_ISSUE_LABEL": "Bekannter Jellyfin-Fehler (keine Sentinel-Diagnose):"
+  "UI_KNOWN_ISSUE_LABEL": "Bekannter Jellyfin-Fehler (keine Sentinel-Diagnose):",
+  "UI_COL_STATUS": "Status",
+  "UI_COL_OCCURRENCES": "Vorkommen",
+  "UI_COL_FIRST_SEEN": "Erstmals aufgetreten",
+  "UI_COL_LAST_SEEN": "Zuletzt aufgetreten",
+  "UI_ACKNOWLEDGE_BUTTON": "Bestätigen",
+  "UI_RESOLVE_BUTTON": "Beheben",
+  "UI_STATUS_DETECTED": "Erkannt",
+  "UI_STATUS_ACKNOWLEDGED": "Bestätigt",
+  "UI_STATUS_RESOLVED": "Behoben",
+  "UI_STATUS_REOPENED": "Erneut aufgetreten",
+  "UI_NO_INCIDENTS": "Noch keine Vorfälle — Sentinel erfasst einen Vorfall nur, wenn eine Sitzung tatsächlich aus einem von den aktuellen Regeln erkannten Grund transkodiert wurde.",
+  "UI_LOAD_INCIDENTS_FAILED": "Vorfälle konnten nicht geladen werden. Details siehe Jellyfin-Serverprotokoll."
 }

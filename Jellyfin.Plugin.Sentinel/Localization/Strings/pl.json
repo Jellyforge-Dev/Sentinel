@@ -22,7 +22,7 @@
   "RESOLUTION_DOWNSCALE_ONLY_EXPLANATION": "Rozdzielczość tego wideo przekracza to, na co pozwala Twoje połączenie lub urządzenie, dlatego Jellyfin musiał ją zmniejszyć (i przekonwertować) — nie chodziło tu o niezgodność kodeka ani formatu.",
   "RESOLUTION_DOWNSCALE_ONLY_RECOMMENDATION": "To ograniczenie sieci/urządzenia, a nie problem z formatem — wersja tego tytułu o niższej rozdzielczości byłaby odtwarzana bezpośrednio (direct play).",
   "UI_TITLE": "Jellyfin Sentinel",
-  "UI_INTRO": "Najnowsze diagnozy odtwarzania znalezione przez Sentinel. Kliknij wiersz, aby zobaczyć stojące za nim dowody. To minimalna lista tylko do odczytu — pełny pulpit incydentów (poziom istotności, potwierdzanie/rozwiązywanie, powiadomienia) jest planowany, ale jeszcze nie został zbudowany.",
+  "UI_INTRO": "Incydenty wykryte przez Sentinela, pogrupowane według multimediów, klienta i urządzenia. Kliknij kartę, aby zobaczyć dowody.",
   "UI_COL_TIME": "Czas",
   "UI_COL_MEDIA": "Multimedia",
   "UI_COL_CLIENT_DEVICE": "Klient / Urządzenie",
@@ -34,5 +34,17 @@
   "UI_EVIDENCE_LABEL": "Dowody:",
   "UI_RECOMMENDATION_LABEL": "Zalecenie:",
   "UI_CODE_LABEL": "Kod:",
-  "UI_KNOWN_ISSUE_LABEL": "Znany błąd Jellyfin (nie jest to diagnoza Sentinel):"
+  "UI_KNOWN_ISSUE_LABEL": "Znany błąd Jellyfin (nie jest to diagnoza Sentinel):",
+  "UI_COL_STATUS": "Status",
+  "UI_COL_OCCURRENCES": "Wystąpienia",
+  "UI_COL_FIRST_SEEN": "Pierwsze wystąpienie",
+  "UI_COL_LAST_SEEN": "Ostatnie wystąpienie",
+  "UI_ACKNOWLEDGE_BUTTON": "Potwierdź",
+  "UI_RESOLVE_BUTTON": "Rozwiąż",
+  "UI_STATUS_DETECTED": "Wykryto",
+  "UI_STATUS_ACKNOWLEDGED": "Potwierdzono",
+  "UI_STATUS_RESOLVED": "Rozwiązano",
+  "UI_STATUS_REOPENED": "Ponownie otwarto",
+  "UI_NO_INCIDENTS": "Brak incydentów — Sentinel rejestruje incydent tylko wtedy, gdy sesja rzeczywiście została transkodowana z powodu rozpoznawanego przez aktualne reguły.",
+  "UI_LOAD_INCIDENTS_FAILED": "Nie udało się załadować incydentów. Sprawdź dziennik serwera Jellyfin, aby uzyskać szczegóły."
 }

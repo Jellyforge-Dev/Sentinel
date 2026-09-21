@@ -22,7 +22,7 @@
   "RESOLUTION_DOWNSCALE_ONLY_EXPLANATION": "Videons upplösning ligger över vad din anslutning eller enhet tillåter, så Jellyfin var tvungen att skala ner (och omkoda) den — ingen kodek- eller formatkonflikt låg bakom.",
   "RESOLUTION_DOWNSCALE_ONLY_RECOMMENDATION": "Det här är en nätverks-/enhetsbegränsning, inte ett formatproblem — en version av den här titeln med lägre upplösning skulle spelas upp direkt (direct play).",
   "UI_TITLE": "Jellyfin Sentinel",
-  "UI_INTRO": "De senaste uppspelningsdiagnoserna som Sentinel har hittat. Klicka på en rad för att se bevisen bakom den. Det här är en minimal, skrivskyddad lista — den fullständiga incident-dashboarden (allvarlighetsgrad, bekräfta/lösa, aviseringar) är planerad men inte byggd än.",
+  "UI_INTRO": "Incidenter som Sentinel har upptäckt, grupperade efter media, klient och enhet. Klicka på ett kort för att se bevisen.",
   "UI_COL_TIME": "Tid",
   "UI_COL_MEDIA": "Media",
   "UI_COL_CLIENT_DEVICE": "Klient / Enhet",
@@ -34,5 +34,17 @@
   "UI_EVIDENCE_LABEL": "Bevis:",
   "UI_RECOMMENDATION_LABEL": "Rekommendation:",
   "UI_CODE_LABEL": "Kod:",
-  "UI_KNOWN_ISSUE_LABEL": "Känd Jellyfin-bugg (inte en Sentinel-diagnos):"
+  "UI_KNOWN_ISSUE_LABEL": "Känd Jellyfin-bugg (inte en Sentinel-diagnos):",
+  "UI_COL_STATUS": "Status",
+  "UI_COL_OCCURRENCES": "Förekomster",
+  "UI_COL_FIRST_SEEN": "Först upptäckt",
+  "UI_COL_LAST_SEEN": "Senast upptäckt",
+  "UI_ACKNOWLEDGE_BUTTON": "Bekräfta",
+  "UI_RESOLVE_BUTTON": "Lös",
+  "UI_STATUS_DETECTED": "Upptäckt",
+  "UI_STATUS_ACKNOWLEDGED": "Bekräftad",
+  "UI_STATUS_RESOLVED": "Löst",
+  "UI_STATUS_REOPENED": "Återöppnad",
+  "UI_NO_INCIDENTS": "Inga incidenter ännu — Sentinel registrerar bara en incident när en session faktiskt kodades om av en anledning som de nuvarande reglerna känner igen.",
+  "UI_LOAD_INCIDENTS_FAILED": "Det gick inte att läsa in incidenter. Se Jellyfins serverlogg för mer information."
 }

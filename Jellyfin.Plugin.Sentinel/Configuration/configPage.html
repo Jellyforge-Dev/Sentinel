@@ -28,20 +28,63 @@
                         </button>
                     </div>
                 </form>
-                <table class="detailTable" style="width:100%">
-                    <thead>
-                        <tr>
-                            <th id="sentinelColTime">Time</th>
-                            <th id="sentinelColMedia">Media</th>
-                            <th id="sentinelColClientDevice">Client / Device</th>
-                            <th id="sentinelColConfidence">Confidence</th>
-                            <th id="sentinelColExplanation">Explanation</th>
-                        </tr>
-                    </thead>
-                    <tbody id="sentinelDiagnosesBody">
-                        <tr><td colspan="5" id="sentinelLoadingRow">Loading…</td></tr>
-                    </tbody>
-                </table>
+                <style>
+                    .sentinelIncidentCard {
+                        background: rgba(127, 127, 127, 0.08);
+                        border: 1px solid rgba(127, 127, 127, 0.25);
+                        border-left-width: 4px;
+                        border-radius: 6px;
+                        padding: 0.75em 1em;
+                        margin-bottom: 0.75em;
+                        cursor: pointer;
+                    }
+                    .sentinelIncidentCard.sentinelStatusDetected { border-left-color: #4a90d9; }
+                    .sentinelIncidentCard.sentinelStatusAcknowledged { border-left-color: #e0a030; }
+                    .sentinelIncidentCard.sentinelStatusResolved { border-left-color: #4caf50; }
+                    .sentinelIncidentCard.sentinelStatusReopened { border-left-color: #e05252; }
+                    .sentinelIncidentHeader {
+                        display: flex;
+                        flex-wrap: wrap;
+                        align-items: center;
+                        gap: 0.75em;
+                        justify-content: space-between;
+                    }
+                    .sentinelIncidentTitleGroup {
+                        display: flex;
+                        flex-wrap: wrap;
+                        align-items: center;
+                        gap: 0.5em;
+                    }
+                    .sentinelStatusBadge {
+                        display: inline-block;
+                        padding: 0.15em 0.6em;
+                        border-radius: 999px;
+                        font-size: 0.8em;
+                        font-weight: 600;
+                        text-transform: uppercase;
+                        color: #fff;
+                    }
+                    .sentinelStatusBadge.sentinelStatusDetected { background: #4a90d9; }
+                    .sentinelStatusBadge.sentinelStatusAcknowledged { background: #e0a030; }
+                    .sentinelStatusBadge.sentinelStatusResolved { background: #4caf50; }
+                    .sentinelStatusBadge.sentinelStatusReopened { background: #e05252; }
+                    .sentinelIncidentMedia { font-weight: 600; }
+                    .sentinelIncidentOccurrences { opacity: 0.8; font-size: 0.9em; }
+                    .sentinelIncidentMeta { opacity: 0.7; font-size: 0.85em; margin-top: 0.35em; }
+                    .sentinelIncidentActions { margin-top: 0.6em; display: flex; gap: 0.5em; }
+                    .sentinelIncidentDetail {
+                        margin-top: 0.75em;
+                        padding-top: 0.6em;
+                        border-top: 1px solid rgba(127, 127, 127, 0.25);
+                    }
+                    .sentinelIncidentPlaceholder { opacity: 0.7; padding: 1em 0; }
+                    @media (max-width: 600px) {
+                        .sentinelIncidentHeader { flex-direction: column; align-items: flex-start; }
+                    }
+                </style>
+                <div id="sentinelIncidentsContainer">
+                    <div id="sentinelLoadingRow" class="sentinelIncidentPlaceholder">Loading…</div>
+                </div>
             </div>
         </div>
         <script type="text/javascript">
@@ -62,7 +105,7 @@
                 var uiStrings = {};
                 var uiStringsDefaults = {
                     UI_TITLE: 'Jellyfin Sentinel',
-                    UI_INTRO: 'Recent playback diagnoses Sentinel has found. Click a row to see the evidence behind it. This is a minimal, read-only list — the full incident dashboard (severity, acknowledge/resolve, notifications) is planned but not yet built.',
+                    UI_INTRO: 'Incidents Sentinel has detected, grouped by media, client, and device. Click a card to see the evidence behind it.',
                     UI_COL_TIME: 'Time',
                     UI_COL_MEDIA: 'Media',
                     UI_COL_CLIENT_DEVICE: 'Client / Device',
@@ -74,7 +117,19 @@
                     UI_EVIDENCE_LABEL: 'Evidence:',
                     UI_RECOMMENDATION_LABEL: 'Recommendation:',
                     UI_CODE_LABEL: 'Code:',
-                    UI_KNOWN_ISSUE_LABEL: 'Known Jellyfin Bug (not a Sentinel diagnosis):'
+                    UI_KNOWN_ISSUE_LABEL: 'Known Jellyfin Bug (not a Sentinel diagnosis):',
+                    UI_COL_STATUS: 'Status',
+                    UI_COL_OCCURRENCES: 'Occurrences',
+                    UI_COL_FIRST_SEEN: 'First Seen',
+                    UI_COL_LAST_SEEN: 'Last Seen',
+                    UI_ACKNOWLEDGE_BUTTON: 'Acknowledge',
+                    UI_RESOLVE_BUTTON: 'Resolve',
+                    UI_STATUS_DETECTED: 'Detected',
+                    UI_STATUS_ACKNOWLEDGED: 'Acknowledged',
+                    UI_STATUS_RESOLVED: 'Resolved',
+                    UI_STATUS_REOPENED: 'Reopened',
+                    UI_NO_INCIDENTS: 'No incidents yet — Sentinel only records an incident when a session actually transcoded for a reason its current rules recognize.',
+                    UI_LOAD_INCIDENTS_FAILED: 'Failed to load incidents. Check Jellyfin\'s server log for details.'
                 };
 
                 function getUiString(key) {
@@ -90,13 +145,8 @@
                 function applyUiStrings() {
                     document.querySelector('#sentinelUiTitle').textContent = getUiString('UI_TITLE');
                     document.querySelector('#sentinelUiIntro').textContent = getUiString('UI_INTRO');
-                    document.querySelector('#sentinelColTime').textContent = getUiString('UI_COL_TIME');
-                    document.querySelector('#sentinelColMedia').textContent = getUiString('UI_COL_MEDIA');
-                    document.querySelector('#sentinelColClientDevice').textContent = getUiString('UI_COL_CLIENT_DEVICE');
-                    document.querySelector('#sentinelColConfidence').textContent = getUiString('UI_COL_CONFIDENCE');
-                    document.querySelector('#sentinelColExplanation').textContent = getUiString('UI_COL_EXPLANATION');
 
-                    // Only present until the first diagnoses fetch replaces the tbody's contents.
+                    // Only present until the first incidents fetch replaces the container's contents.
                     var loadingRow = document.querySelector('#sentinelLoadingRow');
                     if (loadingRow) {
                         loadingRow.textContent = getUiString('UI_LOADING');
@@ -125,13 +175,24 @@
                     }).join('');
                 }
 
-                function buildKnownIssueBlock(diagnosis) {
+                var STATUS_BADGE_CLASS = {
+                    Detected: 'sentinelStatusDetected',
+                    Acknowledged: 'sentinelStatusAcknowledged',
+                    Resolved: 'sentinelStatusResolved',
+                    Reopened: 'sentinelStatusReopened'
+                };
+
+                function statusLabel(status) {
+                    return getUiString('UI_STATUS_' + status.toUpperCase()) || status;
+                }
+
+                function buildKnownIssueBlock(incident) {
                     // The https:// check is defense in depth, not a currently-exploitable gap:
                     // today's only KnownIssueUrl values come from a hardcoded server-side table
                     // (KnownCoreIssues.cs), not user input. It guards against a future version of
                     // that table becoming configurable or remote-loaded ever allowing a
                     // javascript: URL to reach this href unnoticed.
-                    if (!diagnosis.KnownIssueUrl || !/^https:\/\//.test(diagnosis.KnownIssueUrl)) {
+                    if (!incident.KnownIssueUrl || !/^https:\/\//.test(incident.KnownIssueUrl)) {
                         return '';
                     }
 
@@ -141,64 +202,118 @@
                     // never presented as if it were a Sentinel diagnosis).
                     return '<div style="margin-top:0.5em;border-left:3px solid orange;padding-left:0.5em;">' +
                         '<strong>' + escapeHtmlText(getUiString('UI_KNOWN_ISSUE_LABEL')) + '</strong> ' +
-                        escapeHtmlText(diagnosis.KnownIssueExplanation) + ' ' +
-                        '<a href="' + escapeHtmlText(diagnosis.KnownIssueUrl) + '" target="_blank" rel="noopener noreferrer">' +
-                        escapeHtmlText(diagnosis.KnownIssueUrl) + '</a></div>';
+                        escapeHtmlText(incident.KnownIssueExplanation) + ' ' +
+                        '<a href="' + escapeHtmlText(incident.KnownIssueUrl) + '" target="_blank" rel="noopener noreferrer">' +
+                        escapeHtmlText(incident.KnownIssueUrl) + '</a></div>';
                 }
 
-                function appendDiagnosisRows(tbody, diagnosis) {
+                function postIncidentAction(id, action, onDone) {
+                    var url = ApiClient.getUrl('Sentinel/incidents/' + encodeURIComponent(id) + '/' + action);
+                    ApiClient.ajax({ type: 'POST', url: url }).then(onDone).catch(onDone);
+                }
+
+                function buildIncidentCard(incident) {
                     // Property names below are PascalCase on purpose: Jellyfin's API serializes
                     // JSON with PascalCase property names by default (no camelCase conversion),
                     // matching the C# property names exactly — verified against Jellyfin's own
                     // JsonDefaults/PascalCaseJsonProfileFormatter and confirmed by how
                     // jellyfin-plugin-playbackreporting's own client-side JS reads its API
                     // responses (matching its controller's exact casing, not auto-camelCased).
-                    var summaryRow = document.createElement('tr');
-                    summaryRow.style.cursor = 'pointer';
-                    summaryRow.innerHTML =
-                        '<td>' + escapeHtmlText(new Date(diagnosis.CreatedAtUtc).toLocaleString()) + '</td>' +
-                        '<td>' + escapeHtmlText(diagnosis.MediaName) + '</td>' +
-                        '<td>' + escapeHtmlText(diagnosis.Client) + ' / ' + escapeHtmlText(diagnosis.DeviceName) + '</td>' +
-                        '<td>' + escapeHtmlText(diagnosis.Confidence) + '</td>' +
-                        '<td>' + escapeHtmlText(diagnosis.Explanation) + '</td>';
+                    var badgeClass = STATUS_BADGE_CLASS[incident.Status] || '';
 
-                    var detailRow = document.createElement('tr');
-                    detailRow.style.display = 'none';
-                    var detailCell = document.createElement('td');
-                    detailCell.colSpan = 5;
-                    detailCell.style.paddingLeft = '2em';
-                    detailCell.innerHTML =
-                        '<strong>' + escapeHtmlText(getUiString('UI_EVIDENCE_LABEL')) + '</strong><ul>' + buildEvidenceList(diagnosis.Evidence) + '</ul>' +
-                        '<strong>' + escapeHtmlText(getUiString('UI_RECOMMENDATION_LABEL')) + '</strong> ' + escapeHtmlText(diagnosis.Recommendation) +
-                        '<div><em>' + escapeHtmlText(getUiString('UI_CODE_LABEL')) + ' ' + escapeHtmlText(diagnosis.Code) + '</em></div>' +
-                        buildKnownIssueBlock(diagnosis);
-                    detailRow.appendChild(detailCell);
+                    var card = document.createElement('div');
+                    card.className = 'sentinelIncidentCard ' + badgeClass;
 
-                    summaryRow.addEventListener('click', function () {
-                        detailRow.style.display = detailRow.style.display === 'none' ? '' : 'none';
+                    var header = document.createElement('div');
+                    header.className = 'sentinelIncidentHeader';
+                    header.innerHTML =
+                        '<div class="sentinelIncidentTitleGroup">' +
+                        '<span class="sentinelStatusBadge ' + badgeClass + '">' + escapeHtmlText(statusLabel(incident.Status)) + '</span>' +
+                        '<span class="sentinelIncidentMedia">' + escapeHtmlText(incident.MediaName) + '</span>' +
+                        '<span class="sentinelIncidentOccurrences">' + escapeHtmlText(getUiString('UI_COL_OCCURRENCES')) + ': ' + escapeHtmlText(incident.OccurrenceCount) + '</span>' +
+                        '</div>';
+
+                    var meta = document.createElement('div');
+                    meta.className = 'sentinelIncidentMeta';
+                    meta.textContent =
+                        incident.Client + ' / ' + incident.DeviceName +
+                        ' · ' + getUiString('UI_COL_FIRST_SEEN') + ': ' + new Date(incident.FirstSeenUtc).toLocaleString() +
+                        ' · ' + getUiString('UI_COL_LAST_SEEN') + ': ' + new Date(incident.LastSeenUtc).toLocaleString() +
+                        (incident.Confidence ? ' · ' + getUiString('UI_COL_CONFIDENCE') + ': ' + incident.Confidence : '');
+
+                    var detail = document.createElement('div');
+                    detail.className = 'sentinelIncidentDetail';
+                    detail.style.display = 'none';
+                    detail.innerHTML =
+                        '<div>' + escapeHtmlText(incident.Explanation) + '</div>' +
+                        '<strong>' + escapeHtmlText(getUiString('UI_EVIDENCE_LABEL')) + '</strong><ul>' + buildEvidenceList(incident.Evidence) + '</ul>' +
+                        '<strong>' + escapeHtmlText(getUiString('UI_RECOMMENDATION_LABEL')) + '</strong> ' + escapeHtmlText(incident.Recommendation) +
+                        '<div><em>' + escapeHtmlText(getUiString('UI_CODE_LABEL')) + ' ' + escapeHtmlText(incident.Code) + '</em></div>' +
+                        buildKnownIssueBlock(incident);
+
+                    var actions = document.createElement('div');
+                    actions.className = 'sentinelIncidentActions';
+
+                    if (incident.Status === 'Detected' || incident.Status === 'Reopened') {
+                        var acknowledgeButton = document.createElement('button');
+                        acknowledgeButton.setAttribute('is', 'emby-button');
+                        acknowledgeButton.className = 'raised';
+                        acknowledgeButton.textContent = getUiString('UI_ACKNOWLEDGE_BUTTON');
+                        acknowledgeButton.addEventListener('click', function (event) {
+                            event.stopPropagation();
+                            postIncidentAction(incident.Id, 'acknowledge', loadIncidents);
+                        });
+                        actions.appendChild(acknowledgeButton);
+                    }
+
+                    if (incident.Status !== 'Resolved') {
+                        var resolveButton = document.createElement('button');
+                        resolveButton.setAttribute('is', 'emby-button');
+                        resolveButton.className = 'raised';
+                        resolveButton.textContent = getUiString('UI_RESOLVE_BUTTON');
+                        resolveButton.addEventListener('click', function (event) {
+                            event.stopPropagation();
+                            postIncidentAction(incident.Id, 'resolve', loadIncidents);
+                        });
+                        actions.appendChild(resolveButton);
+                    }
+
+                    card.appendChild(header);
+                    card.appendChild(meta);
+                    card.appendChild(actions);
+                    card.appendChild(detail);
+
+                    card.addEventListener('click', function () {
+                        detail.style.display = detail.style.display === 'none' ? '' : 'none';
                     });
 
-                    tbody.appendChild(summaryRow);
-                    tbody.appendChild(detailRow);
+                    return card;
                 }
 
-                function loadDiagnoses() {
-                    var tbody = document.querySelector('#sentinelDiagnosesBody');
-                    var url = ApiClient.getUrl('Sentinel/diagnoses');
+                function loadIncidents() {
+                    var container = document.querySelector('#sentinelIncidentsContainer');
+                    var url = ApiClient.getUrl('Sentinel/incidents');
 
-                    ApiClient.ajax({ type: 'GET', url: url, dataType: 'json' }).then(function (diagnoses) {
-                        tbody.innerHTML = '';
+                    ApiClient.ajax({ type: 'GET', url: url, dataType: 'json' }).then(function (incidents) {
+                        container.innerHTML = '';
 
-                        if (!diagnoses || diagnoses.length === 0) {
-                            tbody.innerHTML = '<tr><td colspan="5">' + escapeHtmlText(getUiString('UI_NO_DIAGNOSES')) + '</td></tr>';
+                        if (!incidents || incidents.length === 0) {
+                            var emptyState = document.createElement('div');
+                            emptyState.className = 'sentinelIncidentPlaceholder';
+                            emptyState.textContent = getUiString('UI_NO_INCIDENTS');
+                            container.appendChild(emptyState);
                             return;
                         }
 
-                        diagnoses.forEach(function (diagnosis) {
-                            appendDiagnosisRows(tbody, diagnosis);
+                        incidents.forEach(function (incident) {
+                            container.appendChild(buildIncidentCard(incident));
                         });
                     }).catch(function () {
-                        tbody.innerHTML = '<tr><td colspan="5">' + escapeHtmlText(getUiString('UI_LOAD_FAILED')) + '</td></tr>';
+                        container.innerHTML = '';
+                        var errorState = document.createElement('div');
+                        errorState.className = 'sentinelIncidentPlaceholder';
+                        errorState.textContent = getUiString('UI_LOAD_INCIDENTS_FAILED');
+                        container.appendChild(errorState);
                     });
                 }
 
@@ -212,7 +327,7 @@
 
                 document.querySelector('#SentinelConfigPage').addEventListener('pageshow', function () {
                     loadUiStrings();
-                    loadDiagnoses();
+                    loadIncidents();
                     loadLanguageSetting();
                 });
 

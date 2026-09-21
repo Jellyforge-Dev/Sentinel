@@ -202,6 +202,8 @@ public class SentinelControllerTests : IDisposable
         Assert.Equal(1, occurrenceCount);
         var status = response[0].GetType().GetProperty("Status")!.GetValue(response[0]);
         Assert.Equal("Detected", status);
+        var confidence = response[0].GetType().GetProperty("Confidence")!.GetValue(response[0]);
+        Assert.Equal("Confirmed", confidence);
     }
 
     [Fact]
