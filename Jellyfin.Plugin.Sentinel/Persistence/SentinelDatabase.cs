@@ -76,6 +76,31 @@ public sealed class SentinelDatabase
             );
             CREATE INDEX IF NOT EXISTS IX_Diagnosis_Code ON Diagnosis(Code);
             CREATE INDEX IF NOT EXISTS IX_Diagnosis_PlaybackEventId ON Diagnosis(PlaybackEventId);
+
+            CREATE TABLE IF NOT EXISTS Incident (
+                Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                Code TEXT NOT NULL,
+                ItemId TEXT NOT NULL,
+                Client TEXT NOT NULL,
+                DeviceName TEXT NOT NULL,
+                Status TEXT NOT NULL,
+                OccurrenceCount INTEGER NOT NULL,
+                FirstSeenUtc TEXT NOT NULL,
+                LastSeenUtc TEXT NOT NULL,
+                AcknowledgedAtUtc TEXT NULL,
+                ResolvedAtUtc TEXT NULL
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS UX_Incident_Fingerprint ON Incident(Code, ItemId, Client, DeviceName)
+                WHERE Status != 'Resolved';
+            CREATE INDEX IF NOT EXISTS IX_Incident_LastSeenUtc ON Incident(LastSeenUtc);
+
+            CREATE TABLE IF NOT EXISTS IncidentDiagnosis (
+                IncidentId INTEGER NOT NULL,
+                DiagnosisId INTEGER NOT NULL,
+                PRIMARY KEY (IncidentId, DiagnosisId),
+                FOREIGN KEY (IncidentId) REFERENCES Incident(Id),
+                FOREIGN KEY (DiagnosisId) REFERENCES Diagnosis(Id)
+            );
             """;
         command.ExecuteNonQuery();
 
