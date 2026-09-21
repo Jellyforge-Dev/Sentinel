@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using Jellyfin.Plugin.Sentinel.Domain;
+using Jellyfin.Plugin.Sentinel.Localization;
 using Jellyfin.Plugin.Sentinel.Persistence;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -23,7 +24,7 @@ public class SentinelDatabaseTests : IDisposable
     public void InsertAndReadBack_PlaybackEventAndDiagnosis_RoundTrips()
     {
         var playbackEventRepository = new PlaybackEventRepository(_database);
-        var diagnosisRepository = new DiagnosisRepository(_database, NullLogger<DiagnosisRepository>.Instance);
+        var diagnosisRepository = new DiagnosisRepository(_database, new LocalizationService(), NullLogger<DiagnosisRepository>.Instance);
 
         var playbackEvent = new PlaybackEvent
         {
@@ -45,9 +46,7 @@ public class SentinelDatabaseTests : IDisposable
         {
             Code = "VIDEO_CODEC_UNSUPPORTED",
             Confidence = Confidence.Confirmed,
-            Evidence = new[] { "TranscodeReasons = VideoCodecNotSupported" },
-            Explanation = "Test explanation",
-            Recommendation = "Test recommendation"
+            Evidence = new[] { "TranscodeReasons = VideoCodecNotSupported" }
         };
 
         diagnosisRepository.Insert(playbackEventId, diagnosis);

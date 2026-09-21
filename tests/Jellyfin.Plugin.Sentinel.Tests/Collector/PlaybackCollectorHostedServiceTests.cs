@@ -1,9 +1,11 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.Sentinel.Collector;
 using Jellyfin.Plugin.Sentinel.Diagnostics;
+using Jellyfin.Plugin.Sentinel.Localization;
 using Jellyfin.Plugin.Sentinel.Persistence;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Library;
@@ -46,7 +48,8 @@ public class PlaybackCollectorHostedServiceTests : IDisposable
     private PlaybackCollectorHostedService CreateService(Mock<ISessionManager> sessionManagerMock, TimeProvider? timeProvider = null)
     {
         var playbackEventRepository = new PlaybackEventRepository(_database);
-        var diagnosisRepository = new DiagnosisRepository(_database, NullLogger<DiagnosisRepository>.Instance);
+        var diagnosisRepository = new DiagnosisRepository(_database, new LocalizationService(), NullLogger<DiagnosisRepository>.Instance);
+        var incidentRepository = new IncidentRepository(_database);
         var ruleEngine = new RuleEngine(CoreTranscodeRules.All);
 
         return new PlaybackCollectorHostedService(
@@ -54,6 +57,7 @@ public class PlaybackCollectorHostedServiceTests : IDisposable
             ruleEngine,
             playbackEventRepository,
             diagnosisRepository,
+            incidentRepository,
             timeProvider ?? TimeProvider.System,
             NullLogger<PlaybackCollectorHostedService>.Instance);
     }
@@ -393,6 +397,69 @@ public class PlaybackCollectorHostedServiceTests : IDisposable
         // If the TTL sweep had NOT run, the original snapshot would still be present and this
         // would incorrectly still be 1.
         Assert.Equal(0, CountDiagnoses("VIDEO_CODEC_UNSUPPORTED"));
+    }
+
+    [Fact]
+    public async Task OnPlaybackStopped_UpsertsSingleIncident_WhenTheSameDiagnosisFiresTwice()
+    {
+        // The Incident Engine must dedup diagnoses sharing the same fingerprint (code, item,
+        // client, device) into one tracked incident with an incrementing occurrence count,
+        // rather than creating a new incident row for every raw diagnosis.
+        var sessionManagerMock = new Mock<ISessionManager>();
+        var incidentRepository = new IncidentRepository(_database);
+        var service = CreateService(sessionManagerMock);
+
+        await service.StartAsync(CancellationToken.None);
+
+        var itemId = Guid.NewGuid();
+        var item = new Movie { Id = itemId };
+
+        void FireDiagnosablePlayback(string sessionId, string playSessionId)
+        {
+            var session = new SessionInfo(sessionManagerMock.Object, NullLogger.Instance)
+            {
+                Id = sessionId,
+                Client = "Fire TV",
+                DeviceName = "Living Room TV",
+                PlayState = new PlayerStateInfo { PlayMethod = PlayMethod.Transcode },
+                TranscodingInfo = new TranscodingInfo
+                {
+                    TranscodeReasons = TranscodeReason.VideoCodecNotSupported
+                }
+            };
+
+            sessionManagerMock.Raise(
+                m => m.PlaybackProgress += null,
+                sessionManagerMock.Object,
+                new PlaybackProgressEventArgs { Session = session, Item = item, PlaySessionId = playSessionId });
+
+            // Simulate Jellyfin's own RemoveNowPlayingItem before PlaybackStopped fires (see
+            // class remarks on PlaybackCollectorHostedService).
+            session.PlayState = new PlayerStateInfo();
+            session.TranscodingInfo = null;
+
+            sessionManagerMock.Raise(
+                m => m.PlaybackStopped += null,
+                sessionManagerMock.Object,
+                new PlaybackStopEventArgs { Session = session, Item = item, PlaySessionId = playSessionId });
+        }
+
+        FireDiagnosablePlayback("session-incident-1", "play-session-incident-1");
+        FireDiagnosablePlayback("session-incident-2", "play-session-incident-2");
+
+        await service.StopAsync(CancellationToken.None);
+
+        Assert.Equal(2, CountDiagnoses("VIDEO_CODEC_UNSUPPORTED"));
+
+        var incidents = incidentRepository.GetRecent(50);
+        var matching = incidents.Where(incident =>
+            incident.Code == "VIDEO_CODEC_UNSUPPORTED"
+            && incident.ItemId == itemId.ToString()
+            && incident.Client == "Fire TV"
+            && incident.DeviceName == "Living Room TV").ToList();
+
+        var incident = Assert.Single(matching);
+        Assert.Equal(2, incident.OccurrenceCount);
     }
 
     public void Dispose()

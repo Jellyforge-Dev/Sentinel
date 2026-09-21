@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using Jellyfin.Plugin.Sentinel.Collector;
 using Jellyfin.Plugin.Sentinel.Diagnostics;
+using Jellyfin.Plugin.Sentinel.Localization;
 using Jellyfin.Plugin.Sentinel.Persistence;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Plugins;
@@ -56,7 +57,9 @@ public sealed partial class PluginServiceRegistrator : IPluginServiceRegistrator
 #pragma warning restore CA1031
         });
         serviceCollection.AddSingleton<PlaybackEventRepository>();
+        serviceCollection.AddSingleton<LocalizationService>();
         serviceCollection.AddSingleton<DiagnosisRepository>();
+        serviceCollection.AddSingleton<IncidentRepository>();
         serviceCollection.AddSingleton(new RuleEngine(AllDiagnosticRules.All));
         serviceCollection.AddSingleton(TimeProvider.System);
         serviceCollection.AddHostedService<PlaybackCollectorHostedService>();

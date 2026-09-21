@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using Jellyfin.Plugin.Sentinel.Domain;
+using Jellyfin.Plugin.Sentinel.Localization;
 using Jellyfin.Plugin.Sentinel.Persistence;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -14,13 +15,14 @@ public class DiagnosisRepositoryRecentTests : IDisposable
     private readonly SentinelDatabase _database;
     private readonly PlaybackEventRepository _playbackEventRepository;
     private readonly DiagnosisRepository _diagnosisRepository;
+    private readonly LocalizationService _localizationService = new();
 
     public DiagnosisRepositoryRecentTests()
     {
         _databasePath = Path.Combine(Path.GetTempPath(), $"sentinel-recent-test-{Guid.NewGuid()}.db");
         _database = new SentinelDatabase(_databasePath);
         _playbackEventRepository = new PlaybackEventRepository(_database);
-        _diagnosisRepository = new DiagnosisRepository(_database, NullLogger<DiagnosisRepository>.Instance);
+        _diagnosisRepository = new DiagnosisRepository(_database, _localizationService, NullLogger<DiagnosisRepository>.Instance);
     }
 
     [Fact]
@@ -38,7 +40,7 @@ public class DiagnosisRepositoryRecentTests : IDisposable
         var newerEventId = InsertPlaybackEvent("session-new", "Chromecast", "Kitchen", newerItemId);
         _diagnosisRepository.Insert(newerEventId, BuildDiagnosis("NEWER_CODE"));
 
-        var recent = _diagnosisRepository.GetRecent(50);
+        var recent = _diagnosisRepository.GetRecent(50, SupportedLanguage.En);
 
         Assert.Equal(2, recent.Count);
 
@@ -50,8 +52,8 @@ public class DiagnosisRepositoryRecentTests : IDisposable
         Assert.Equal("NEWER_CODE", newer.Code);
         Assert.Equal(Confidence.Confirmed, newer.Confidence);
         Assert.Equal(new[] { "evidence" }, newer.Evidence);
-        Assert.Equal("explanation", newer.Explanation);
-        Assert.Equal("recommendation", newer.Recommendation);
+        Assert.Equal("NEWER_CODE_EXPLANATION", newer.Explanation);
+        Assert.Equal("NEWER_CODE_RECOMMENDATION", newer.Recommendation);
         Assert.Equal(newerItemId, newer.ItemId);
         Assert.Equal("Chromecast", newer.Client);
         Assert.Equal("Kitchen", newer.DeviceName);
@@ -80,7 +82,7 @@ public class DiagnosisRepositoryRecentTests : IDisposable
         // CreatedAtUtc, despite having the higher Id.
         SetDiagnosisCreatedAtUtc("INSERTED_SECOND", DateTime.UtcNow.AddDays(-1));
 
-        var recent = _diagnosisRepository.GetRecent(50);
+        var recent = _diagnosisRepository.GetRecent(50, SupportedLanguage.En);
 
         Assert.Equal("INSERTED_FIRST", recent[0].Code);
         Assert.Equal("INSERTED_SECOND", recent[1].Code);
@@ -95,7 +97,7 @@ public class DiagnosisRepositoryRecentTests : IDisposable
             _diagnosisRepository.Insert(eventId, BuildDiagnosis($"CODE_{i}"));
         }
 
-        var recent = _diagnosisRepository.GetRecent(2);
+        var recent = _diagnosisRepository.GetRecent(2, SupportedLanguage.En);
 
         Assert.Equal(2, recent.Count);
     }
@@ -108,13 +110,11 @@ public class DiagnosisRepositoryRecentTests : IDisposable
         {
             Code = "TEST_CODE",
             Confidence = Confidence.Likely,
-            Evidence = new[] { "fact one", "fact two" },
-            Explanation = "explanation",
-            Recommendation = "recommendation"
+            Evidence = new[] { "fact one", "fact two" }
         };
         _diagnosisRepository.Insert(eventId, diagnosis);
 
-        var recent = _diagnosisRepository.GetRecent(50);
+        var recent = _diagnosisRepository.GetRecent(50, SupportedLanguage.En);
 
         Assert.Equal(new[] { "fact one", "fact two" }, recent[0].Evidence);
     }
@@ -149,9 +149,7 @@ public class DiagnosisRepositoryRecentTests : IDisposable
     {
         Code = code,
         Confidence = Confidence.Confirmed,
-        Evidence = new[] { "evidence" },
-        Explanation = "explanation",
-        Recommendation = "recommendation"
+        Evidence = new[] { "evidence" }
     };
 
     public void Dispose()
