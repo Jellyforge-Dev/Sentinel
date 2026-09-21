@@ -103,6 +103,7 @@ public class SentinelController : ControllerBase
     /// <summary>
     /// Resolves a media item's display name from its id, falling back to the raw id if the item
     /// can no longer be found (e.g. it was deleted from the library since the diagnosis was made).
+    /// For TV episodes, prefixes the series name for context (e.g., "Breaking Bad - Pilot").
     /// </summary>
     private string ResolveMediaName(string itemId)
     {
@@ -111,6 +112,18 @@ public class SentinelController : ControllerBase
             return itemId;
         }
 
-        return _libraryManager.GetItemById(guid)?.Name ?? itemId;
+        var item = _libraryManager.GetItemById(guid);
+        if (item is null)
+        {
+            return itemId;
+        }
+
+        if (item is MediaBrowser.Controller.Entities.IHasSeries hasSeries)
+        {
+            var seriesName = hasSeries.FindSeriesName();
+            return string.IsNullOrEmpty(seriesName) ? item.Name : $"{seriesName} - {item.Name}";
+        }
+
+        return item.Name;
     }
 }
