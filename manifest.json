@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/Jellyforge-Dev/Sentinel/main/Sentinel-Logo.png",
     "versions": [
       {
+        "version": "0.1.5.1",
+        "changelog": "Adds full localization (English, German, Spanish, French, Swedish, Danish, Polish) — a per-plugin Language setting, and every diagnosis explanation/recommendation plus every dashboard UI string is now translated at serve time via a new GET Sentinel/ui-strings endpoint. Fixes the dashboard's media display to show \"Series - Episode Name\" for TV episodes instead of just the episode name. Adds the Incident Engine: diagnoses sharing the same rule code, media item, client, and device are now deduplicated into a single Incident (via a partial unique SQLite index on that fingerprint) instead of alerting once per raw diagnosis; a resolved incident that recurs reopens instead of duplicating; new GET/POST Sentinel/incidents endpoints (list, acknowledge, resolve). The dashboard is rewritten from a plain diagnosis table into a card-based Incident view with status badges, occurrence counts, and working Acknowledge/Resolve buttons, plus a language selector wired to the new setting. Notification Delivery (Webhook/Discord/Telegram/Email), the plugin-update/restart-pending notification feature, and a dedicated security review are NOT yet in this release — tracked for a following one. Verified by a fresh-subagent review after every task (spec compliance + code quality, including independent re-runs of the full test suite and independent JSON-validity checks on all 7 locale files); not yet confirmed against a real Jellyfin server for any of this release's features.",
+        "targetAbi": "12.1.0.0",
+        "sourceUrl": "https://github.com/Jellyforge-Dev/Sentinel/releases/download/v0.1.5.1/sentinel-0.1.5.1.zip",
+        "checksum": "7a24bf651f0f53e3dbd4072365e0de7e",
+        "timestamp": "2026-09-21T15:42:32Z"
+      },
+      {
         "version": "0.1.5.0",
         "changelog": "Adds five new diagnosis rules covering external audio tracks, HDR/dynamic-range mismatches, audio channel downmixing, bitrate-only transcodes, and resolution-only transcodes — including the exact real-world case confirmed on a live server in 0.1.4.0 (an AV1 transcode with only an audio-channel-downmix reason, previously unrecognized). Also wires up the previously dormant Known Core Issues table into the API and dashboard, surfaced as a distinct \"Known Jellyfin Bug\" note. Verified by three rounds of independent review; each rule's PlayMethod == Transcode gate and mutual exclusivity with stronger, more specific diagnoses is covered by a dedicated regression test, verified RED/GREEN by temporarily removing every gate and confirming each one is independently caught. Not yet confirmed against a real server for these specific new rules.",
         "targetAbi": "12.1.0.0",
