@@ -148,6 +148,59 @@ public sealed partial class DiagnosisRepository
         return results;
     }
 
+    /// <summary>
+    /// Retrieves a single diagnosis by its ID, translated into the given language.
+    /// </summary>
+    /// <param name="diagnosisId">The diagnosis row's ID.</param>
+    /// <param name="language">The language to translate the explanation and recommendation into.</param>
+    /// <returns>The diagnosis summary, or null if no row with this ID exists or it could not be read back.</returns>
+    public DiagnosisSummary? GetById(long diagnosisId, SupportedLanguage language)
+    {
+        using var connection = _database.OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            SELECT d.Id, d.Code, d.Confidence, d.EvidenceJson, d.CreatedAtUtc,
+                   p.ItemId, p.Client, p.DeviceName, p.PlayMethod
+            FROM Diagnosis d
+            JOIN PlaybackEvent p ON p.Id = d.PlaybackEventId
+            WHERE d.Id = $id;
+            """;
+        command.Parameters.AddWithValue("$id", diagnosisId);
+
+        using var reader = command.ExecuteReader();
+        if (!reader.Read())
+        {
+            return null;
+        }
+
+        var id = reader.GetInt64(0);
+        var code = reader.GetString(1);
+
+        try
+        {
+            return new DiagnosisSummary
+            {
+                Id = id,
+                Code = code,
+                Confidence = Enum.Parse<Confidence>(reader.GetString(2)),
+                Evidence = JsonSerializer.Deserialize<List<string>>(reader.GetString(3)) ?? new List<string>(),
+                Explanation = _localizationService.Translate($"{code}_EXPLANATION", language),
+                Recommendation = _localizationService.Translate($"{code}_RECOMMENDATION", language),
+                CreatedAtUtc = DateTime.Parse(reader.GetString(4), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
+                ItemId = reader.GetString(5),
+                Client = reader.GetString(6),
+                DeviceName = reader.GetString(7),
+                PlayMethod = reader.GetString(8)
+            };
+        }
+        catch (Exception ex) when (ex is ArgumentException or JsonException or FormatException or OverflowException)
+        {
+            LogMalformedDiagnosisRowSkipped(_logger, id, ex.Message, ex);
+            return null;
+        }
+    }
+
     [LoggerMessage(Level = LogLevel.Warning, Message = "Sentinel: skipped Diagnosis row {Id} in GetRecent — it could not be read back: {Message}")]
     private static partial void LogMalformedDiagnosisRowSkipped(ILogger logger, long id, string message, Exception exception);
 }

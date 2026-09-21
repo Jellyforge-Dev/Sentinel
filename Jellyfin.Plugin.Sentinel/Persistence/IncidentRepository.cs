@@ -170,6 +170,30 @@ public sealed class IncidentRepository
     }
 
     /// <summary>
+    /// Gets the ID of the most recently created diagnosis linked to this incident.
+    /// </summary>
+    /// <param name="incidentId">The incident's ID.</param>
+    /// <returns>The most recent linked diagnosis's ID, or null if none are linked (should not happen in practice — every incident is created by <see cref="UpsertOnDiagnosis"/> linking at least one).</returns>
+    public long? GetLatestDiagnosisId(long incidentId)
+    {
+        using var connection = _database.OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            SELECT d.Id
+            FROM IncidentDiagnosis link
+            JOIN Diagnosis d ON d.Id = link.DiagnosisId
+            WHERE link.IncidentId = $incidentId
+            ORDER BY d.CreatedAtUtc DESC, d.Id DESC
+            LIMIT 1;
+            """;
+        command.Parameters.AddWithValue("$incidentId", incidentId);
+
+        var result = command.ExecuteScalar();
+        return result is null or DBNull ? null : (long)result;
+    }
+
+    /// <summary>
     /// Marks an incident as acknowledged.
     /// </summary>
     /// <param name="incidentId">The incident's ID.</param>

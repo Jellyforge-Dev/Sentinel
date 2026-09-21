@@ -23,6 +23,7 @@ public class SentinelControllerTests : IDisposable
     private readonly SentinelDatabase _database;
     private readonly PlaybackEventRepository _playbackEventRepository;
     private readonly DiagnosisRepository _diagnosisRepository;
+    private readonly IncidentRepository _incidentRepository;
     private readonly LocalizationService _localizationService = new();
     private readonly SentinelController _controller;
 
@@ -32,9 +33,10 @@ public class SentinelControllerTests : IDisposable
         _database = new SentinelDatabase(_databasePath);
         _playbackEventRepository = new PlaybackEventRepository(_database);
         _diagnosisRepository = new DiagnosisRepository(_database, _localizationService, NullLogger<DiagnosisRepository>.Instance);
+        _incidentRepository = new IncidentRepository(_database);
 
         var libraryManagerMock = new Mock<ILibraryManager>();
-        _controller = new SentinelController(_diagnosisRepository, libraryManagerMock.Object, _localizationService);
+        _controller = new SentinelController(_diagnosisRepository, libraryManagerMock.Object, _localizationService, _incidentRepository);
     }
 
     [Fact]
@@ -94,7 +96,7 @@ public class SentinelControllerTests : IDisposable
 
         var libraryManagerMock = new Mock<ILibraryManager>();
         libraryManagerMock.Setup(x => x.GetItemById(episodeId)).Returns(episode);
-        var controller = new SentinelController(_diagnosisRepository, libraryManagerMock.Object, _localizationService);
+        var controller = new SentinelController(_diagnosisRepository, libraryManagerMock.Object, _localizationService, _incidentRepository);
 
         var playbackEvent = new PlaybackEvent
         {
@@ -135,7 +137,7 @@ public class SentinelControllerTests : IDisposable
 
         var libraryManagerMock = new Mock<ILibraryManager>();
         libraryManagerMock.Setup(x => x.GetItemById(movieId)).Returns(movie);
-        var controller = new SentinelController(_diagnosisRepository, libraryManagerMock.Object, _localizationService);
+        var controller = new SentinelController(_diagnosisRepository, libraryManagerMock.Object, _localizationService, _incidentRepository);
 
         var playbackEvent = new PlaybackEvent
         {
@@ -162,6 +164,112 @@ public class SentinelControllerTests : IDisposable
         Assert.Single(response);
         var mediaName = response[0].GetType().GetProperty("MediaName")!.GetValue(response[0]);
         Assert.Equal("Bumblebee", mediaName);
+    }
+
+    [Fact]
+    public void GetIncidents_ReturnsTranslatedExplanationFromLatestLinkedDiagnosis()
+    {
+        var playbackEvent = new PlaybackEvent
+        {
+            SessionId = "session-4",
+            ItemId = Guid.NewGuid().ToString(),
+            Client = "Fire TV",
+            DeviceName = "Living Room",
+            PlayMethod = MediaBrowser.Model.Session.PlayMethod.Transcode,
+            TranscodeReasons = MediaBrowser.Model.Session.TranscodeReason.VideoCodecNotSupported,
+            CreatedAtUtc = DateTime.UtcNow
+        };
+        var playbackEventId = _playbackEventRepository.Insert(playbackEvent);
+
+        var diagnosis = new Diagnosis
+        {
+            Code = "VIDEO_CODEC_UNSUPPORTED",
+            Confidence = Confidence.Confirmed,
+            Evidence = new[] { "TranscodeReasons = VideoCodecNotSupported" }
+        };
+        var diagnosisId = _diagnosisRepository.Insert(playbackEventId, diagnosis);
+        _incidentRepository.UpsertOnDiagnosis(diagnosisId, diagnosis.Code, playbackEvent.ItemId, playbackEvent.Client, playbackEvent.DeviceName);
+
+        var result = Assert.IsType<OkObjectResult>(_controller.GetIncidents());
+        var response = Assert.IsAssignableFrom<IEnumerable<object>>(result.Value).ToList();
+
+        Assert.Single(response);
+        var explanation = response[0].GetType().GetProperty("Explanation")!.GetValue(response[0]);
+        Assert.Equal(
+            "Your device can't play this video's codec natively, so Jellyfin had to convert it on the fly.",
+            explanation);
+        var occurrenceCount = response[0].GetType().GetProperty("OccurrenceCount")!.GetValue(response[0]);
+        Assert.Equal(1, occurrenceCount);
+        var status = response[0].GetType().GetProperty("Status")!.GetValue(response[0]);
+        Assert.Equal("Detected", status);
+    }
+
+    [Fact]
+    public void AcknowledgeIncident_SetsStatusToAcknowledged()
+    {
+        var playbackEvent = new PlaybackEvent
+        {
+            SessionId = "session-5",
+            ItemId = Guid.NewGuid().ToString(),
+            Client = "Fire TV",
+            DeviceName = "Living Room",
+            PlayMethod = MediaBrowser.Model.Session.PlayMethod.Transcode,
+            TranscodeReasons = MediaBrowser.Model.Session.TranscodeReason.VideoCodecNotSupported,
+            CreatedAtUtc = DateTime.UtcNow
+        };
+        var playbackEventId = _playbackEventRepository.Insert(playbackEvent);
+
+        var diagnosis = new Diagnosis
+        {
+            Code = "VIDEO_CODEC_UNSUPPORTED",
+            Confidence = Confidence.Confirmed,
+            Evidence = new[] { "TranscodeReasons = VideoCodecNotSupported" }
+        };
+        var diagnosisId = _diagnosisRepository.Insert(playbackEventId, diagnosis);
+        var incidentId = _incidentRepository.UpsertOnDiagnosis(diagnosisId, diagnosis.Code, playbackEvent.ItemId, playbackEvent.Client, playbackEvent.DeviceName);
+
+        Assert.IsType<OkResult>(_controller.AcknowledgeIncident(incidentId));
+
+        var result = Assert.IsType<OkObjectResult>(_controller.GetIncidents());
+        var response = Assert.IsAssignableFrom<IEnumerable<object>>(result.Value).ToList();
+
+        Assert.Single(response);
+        var status = response[0].GetType().GetProperty("Status")!.GetValue(response[0]);
+        Assert.Equal("Acknowledged", status);
+    }
+
+    [Fact]
+    public void ResolveIncident_SetsStatusToResolved()
+    {
+        var playbackEvent = new PlaybackEvent
+        {
+            SessionId = "session-6",
+            ItemId = Guid.NewGuid().ToString(),
+            Client = "Fire TV",
+            DeviceName = "Living Room",
+            PlayMethod = MediaBrowser.Model.Session.PlayMethod.Transcode,
+            TranscodeReasons = MediaBrowser.Model.Session.TranscodeReason.VideoCodecNotSupported,
+            CreatedAtUtc = DateTime.UtcNow
+        };
+        var playbackEventId = _playbackEventRepository.Insert(playbackEvent);
+
+        var diagnosis = new Diagnosis
+        {
+            Code = "VIDEO_CODEC_UNSUPPORTED",
+            Confidence = Confidence.Confirmed,
+            Evidence = new[] { "TranscodeReasons = VideoCodecNotSupported" }
+        };
+        var diagnosisId = _diagnosisRepository.Insert(playbackEventId, diagnosis);
+        var incidentId = _incidentRepository.UpsertOnDiagnosis(diagnosisId, diagnosis.Code, playbackEvent.ItemId, playbackEvent.Client, playbackEvent.DeviceName);
+
+        Assert.IsType<OkResult>(_controller.ResolveIncident(incidentId));
+
+        var result = Assert.IsType<OkObjectResult>(_controller.GetIncidents());
+        var response = Assert.IsAssignableFrom<IEnumerable<object>>(result.Value).ToList();
+
+        Assert.Single(response);
+        var status = response[0].GetType().GetProperty("Status")!.GetValue(response[0]);
+        Assert.Equal("Resolved", status);
     }
 
     public void Dispose()

@@ -25,6 +25,7 @@ public class SentinelController : ControllerBase
     private readonly DiagnosisRepository _diagnosisRepository;
     private readonly ILibraryManager _libraryManager;
     private readonly LocalizationService _localizationService;
+    private readonly IncidentRepository _incidentRepository;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SentinelController"/> class.
@@ -32,14 +33,17 @@ public class SentinelController : ControllerBase
     /// <param name="diagnosisRepository">Repository for reading Sentinel's collected diagnoses.</param>
     /// <param name="libraryManager">Used to resolve a media item's display name from its id.</param>
     /// <param name="localizationService">Used to translate the dashboard's own UI strings.</param>
-    public SentinelController(DiagnosisRepository diagnosisRepository, ILibraryManager libraryManager, LocalizationService localizationService)
+    /// <param name="incidentRepository">Repository for reading and updating Sentinel's tracked incidents.</param>
+    public SentinelController(DiagnosisRepository diagnosisRepository, ILibraryManager libraryManager, LocalizationService localizationService, IncidentRepository incidentRepository)
     {
         ArgumentNullException.ThrowIfNull(diagnosisRepository);
         ArgumentNullException.ThrowIfNull(libraryManager);
         ArgumentNullException.ThrowIfNull(localizationService);
+        ArgumentNullException.ThrowIfNull(incidentRepository);
         _diagnosisRepository = diagnosisRepository;
         _libraryManager = libraryManager;
         _localizationService = localizationService;
+        _incidentRepository = incidentRepository;
     }
 
     /// <summary>
@@ -76,6 +80,72 @@ public class SentinelController : ControllerBase
         });
 
         return Ok(response);
+    }
+
+    /// <summary>
+    /// Gets the most recently updated incidents, most recent first, each with the translated
+    /// explanation/recommendation from its most recently linked diagnosis.
+    /// </summary>
+    /// <returns>The recent incidents, with the originating media item's display name resolved.</returns>
+    [HttpGet("incidents")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public ActionResult GetIncidents()
+    {
+        var language = Plugin.Instance?.Configuration.Language ?? Localization.SupportedLanguage.En;
+        var incidents = _incidentRepository.GetRecent(50);
+
+        var response = incidents.Select(incident =>
+        {
+            var latestDiagnosisId = _incidentRepository.GetLatestDiagnosisId(incident.Id);
+            var diagnosis = latestDiagnosisId is long diagnosisId ? _diagnosisRepository.GetById(diagnosisId, language) : null;
+            var knownIssue = KnownCoreIssues.Match(incident.Code);
+
+            return new
+            {
+                incident.Id,
+                incident.Code,
+                Status = incident.Status.ToString(),
+                incident.OccurrenceCount,
+                incident.FirstSeenUtc,
+                incident.LastSeenUtc,
+                incident.AcknowledgedAtUtc,
+                incident.ResolvedAtUtc,
+                incident.Client,
+                incident.DeviceName,
+                MediaName = ResolveMediaName(incident.ItemId),
+                Explanation = diagnosis?.Explanation,
+                Recommendation = diagnosis?.Recommendation,
+                Evidence = diagnosis?.Evidence,
+                KnownIssueUrl = knownIssue?.IssueUrl,
+                KnownIssueExplanation = knownIssue?.Explanation
+            };
+        });
+
+        return Ok(response);
+    }
+
+    /// <summary>
+    /// Marks an incident as acknowledged.
+    /// </summary>
+    /// <param name="id">The incident's ID.</param>
+    [HttpPost("incidents/{id}/acknowledge")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public ActionResult AcknowledgeIncident(long id)
+    {
+        _incidentRepository.Acknowledge(id);
+        return Ok();
+    }
+
+    /// <summary>
+    /// Marks an incident as resolved.
+    /// </summary>
+    /// <param name="id">The incident's ID.</param>
+    [HttpPost("incidents/{id}/resolve")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public ActionResult ResolveIncident(long id)
+    {
+        _incidentRepository.Resolve(id);
+        return Ok();
     }
 
     /// <summary>
