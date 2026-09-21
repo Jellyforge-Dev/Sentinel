@@ -20,5 +20,19 @@
   "BITRATE_CAP_EXCEEDED_EXPLANATION": "This file's bitrate is above what your connection or device profile allows, so Jellyfin had to transcode it down — no codec or format mismatch was involved.",
   "BITRATE_CAP_EXCEEDED_RECOMMENDATION": "If this happens often, consider a lower-bitrate encode of this title or checking your network/device bitrate limit setting.",
   "RESOLUTION_DOWNSCALE_ONLY_EXPLANATION": "This video's resolution is above what your connection or device allows, so Jellyfin had to downscale (and transcode) it — no codec or format mismatch was involved.",
-  "RESOLUTION_DOWNSCALE_ONLY_RECOMMENDATION": "This is a network/device limit, not a format problem — a lower-resolution version of this title would direct play."
+  "RESOLUTION_DOWNSCALE_ONLY_RECOMMENDATION": "This is a network/device limit, not a format problem — a lower-resolution version of this title would direct play.",
+  "UI_TITLE": "Jellyfin Sentinel",
+  "UI_INTRO": "Recent playback diagnoses Sentinel has found. Click a row to see the evidence behind it. This is a minimal, read-only list — the full incident dashboard (severity, acknowledge/resolve, notifications) is planned but not yet built.",
+  "UI_COL_TIME": "Time",
+  "UI_COL_MEDIA": "Media",
+  "UI_COL_CLIENT_DEVICE": "Client / Device",
+  "UI_COL_CONFIDENCE": "Confidence",
+  "UI_COL_EXPLANATION": "Explanation",
+  "UI_LOADING": "Loading…",
+  "UI_NO_DIAGNOSES": "No diagnoses yet — Sentinel only records a diagnosis when a session actually transcoded for a reason its current rules recognize.",
+  "UI_LOAD_FAILED": "Failed to load diagnoses. Check Jellyfin's server log for details.",
+  "UI_EVIDENCE_LABEL": "Evidence:",
+  "UI_RECOMMENDATION_LABEL": "Recommendation:",
+  "UI_CODE_LABEL": "Code:",
+  "UI_KNOWN_ISSUE_LABEL": "Known Jellyfin Bug (not a Sentinel diagnosis):"
 }

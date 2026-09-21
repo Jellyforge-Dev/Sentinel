@@ -71,8 +71,6 @@ public sealed class SentinelDatabase
                 Code TEXT NOT NULL,
                 Confidence TEXT NOT NULL,
                 EvidenceJson TEXT NOT NULL,
-                Explanation TEXT NOT NULL,
-                Recommendation TEXT NOT NULL,
                 CreatedAtUtc TEXT NOT NULL,
                 FOREIGN KEY (PlaybackEventId) REFERENCES PlaybackEvent(Id)
             );
@@ -80,5 +78,32 @@ public sealed class SentinelDatabase
             CREATE INDEX IF NOT EXISTS IX_Diagnosis_PlaybackEventId ON Diagnosis(PlaybackEventId);
             """;
         command.ExecuteNonQuery();
+
+        DropColumnIfExists(connection, "Diagnosis", "Explanation");
+        DropColumnIfExists(connection, "Diagnosis", "Recommendation");
     }
+
+    // CA2100 flags the interpolated CommandText below because SQLite has no parameter syntax for
+    // identifiers (table/column names). table/column are always fixed literal strings passed by
+    // callers in this file — never caller-supplied or externally sourced — so this is a false
+    // positive for this specific, narrowly-scoped method.
+#pragma warning disable CA2100
+    private static void DropColumnIfExists(SqliteConnection connection, string table, string column)
+    {
+        using (var checkCommand = connection.CreateCommand())
+        {
+            checkCommand.CommandText = $"SELECT COUNT(*) FROM pragma_table_info('{table}') WHERE name = $column;";
+            checkCommand.Parameters.AddWithValue("$column", column);
+            var exists = (long)checkCommand.ExecuteScalar()! > 0;
+            if (!exists)
+            {
+                return;
+            }
+        }
+
+        using var alterCommand = connection.CreateCommand();
+        alterCommand.CommandText = $"ALTER TABLE {table} DROP COLUMN {column};";
+        alterCommand.ExecuteNonQuery();
+    }
+#pragma warning restore CA2100
 }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Text.Json;
 using Jellyfin.Plugin.Sentinel.Domain;
+using Jellyfin.Plugin.Sentinel.Localization;
 using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.Sentinel.Persistence;
@@ -13,19 +14,23 @@ namespace Jellyfin.Plugin.Sentinel.Persistence;
 public sealed partial class DiagnosisRepository
 {
     private readonly SentinelDatabase _database;
+    private readonly LocalizationService _localizationService;
     private readonly ILogger<DiagnosisRepository> _logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="DiagnosisRepository"/> class.
     /// </summary>
     /// <param name="database">The database instance to use for persistence.</param>
+    /// <param name="localizationService">Used to translate diagnosis codes into explanation/recommendation text in <see cref="GetRecent"/>.</param>
     /// <param name="logger">Used to log a row that fails to deserialize in <see cref="GetRecent"/> without aborting the whole read.</param>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="database"/> or <paramref name="logger"/> is null.</exception>
-    public DiagnosisRepository(SentinelDatabase database, ILogger<DiagnosisRepository> logger)
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="database"/>, <paramref name="localizationService"/>, or <paramref name="logger"/> is null.</exception>
+    public DiagnosisRepository(SentinelDatabase database, LocalizationService localizationService, ILogger<DiagnosisRepository> logger)
     {
         ArgumentNullException.ThrowIfNull(database);
+        ArgumentNullException.ThrowIfNull(localizationService);
         ArgumentNullException.ThrowIfNull(logger);
         _database = database;
+        _localizationService = localizationService;
         _logger = logger;
     }
 
@@ -34,8 +39,9 @@ public sealed partial class DiagnosisRepository
     /// </summary>
     /// <param name="playbackEventId">The ID of the playback event this diagnosis relates to.</param>
     /// <param name="diagnosis">The diagnosis record to insert.</param>
+    /// <returns>The newly inserted row's ID.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="diagnosis"/> is null.</exception>
-    public void Insert(long playbackEventId, Diagnosis diagnosis)
+    public long Insert(long playbackEventId, Diagnosis diagnosis)
     {
         ArgumentNullException.ThrowIfNull(diagnosis);
         using var connection = _database.OpenConnection();
@@ -43,19 +49,18 @@ public sealed partial class DiagnosisRepository
         command.CommandText =
             """
             INSERT INTO Diagnosis
-                (PlaybackEventId, Code, Confidence, EvidenceJson, Explanation, Recommendation, CreatedAtUtc)
+                (PlaybackEventId, Code, Confidence, EvidenceJson, CreatedAtUtc)
             VALUES
-                ($playbackEventId, $code, $confidence, $evidenceJson, $explanation, $recommendation, $createdAtUtc);
+                ($playbackEventId, $code, $confidence, $evidenceJson, $createdAtUtc);
+            SELECT last_insert_rowid();
             """;
         command.Parameters.AddWithValue("$playbackEventId", playbackEventId);
         command.Parameters.AddWithValue("$code", diagnosis.Code);
         command.Parameters.AddWithValue("$confidence", diagnosis.Confidence.ToString());
         command.Parameters.AddWithValue("$evidenceJson", JsonSerializer.Serialize(diagnosis.Evidence));
-        command.Parameters.AddWithValue("$explanation", diagnosis.Explanation);
-        command.Parameters.AddWithValue("$recommendation", diagnosis.Recommendation);
         command.Parameters.AddWithValue("$createdAtUtc", DateTime.UtcNow.ToString("O"));
 
-        command.ExecuteNonQuery();
+        return (long)command.ExecuteScalar()!;
     }
 
     /// <summary>
@@ -86,9 +91,10 @@ public sealed partial class DiagnosisRepository
     /// general-purpose query, hence the fixed ordering and no filtering.
     /// </summary>
     /// <param name="limit">The maximum number of diagnoses to return. Must be positive.</param>
+    /// <param name="language">The language to translate each diagnosis's explanation and recommendation into.</param>
     /// <returns>A read-only list of diagnosis summaries, most recent first.</returns>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="limit"/> is not positive.</exception>
-    public IReadOnlyList<DiagnosisSummary> GetRecent(int limit)
+    public IReadOnlyList<DiagnosisSummary> GetRecent(int limit, SupportedLanguage language)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(limit);
 
@@ -96,7 +102,7 @@ public sealed partial class DiagnosisRepository
         using var command = connection.CreateCommand();
         command.CommandText =
             """
-            SELECT d.Id, d.Code, d.Confidence, d.EvidenceJson, d.Explanation, d.Recommendation, d.CreatedAtUtc,
+            SELECT d.Id, d.Code, d.Confidence, d.EvidenceJson, d.CreatedAtUtc,
                    p.ItemId, p.Client, p.DeviceName, p.PlayMethod
             FROM Diagnosis d
             JOIN PlaybackEvent p ON p.Id = d.PlaybackEventId
@@ -110,6 +116,7 @@ public sealed partial class DiagnosisRepository
         while (reader.Read())
         {
             var id = reader.GetInt64(0);
+            var code = reader.GetString(1);
 
             // A single malformed row (a future enum rename, a partial write from a power loss)
             // must not take down the whole dashboard — an admin who most needs to see the other
@@ -120,16 +127,16 @@ public sealed partial class DiagnosisRepository
                 results.Add(new DiagnosisSummary
                 {
                     Id = id,
-                    Code = reader.GetString(1),
+                    Code = code,
                     Confidence = Enum.Parse<Confidence>(reader.GetString(2)),
                     Evidence = JsonSerializer.Deserialize<List<string>>(reader.GetString(3)) ?? new List<string>(),
-                    Explanation = reader.GetString(4),
-                    Recommendation = reader.GetString(5),
-                    CreatedAtUtc = DateTime.Parse(reader.GetString(6), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
-                    ItemId = reader.GetString(7),
-                    Client = reader.GetString(8),
-                    DeviceName = reader.GetString(9),
-                    PlayMethod = reader.GetString(10)
+                    Explanation = _localizationService.Translate($"{code}_EXPLANATION", language),
+                    Recommendation = _localizationService.Translate($"{code}_RECOMMENDATION", language),
+                    CreatedAtUtc = DateTime.Parse(reader.GetString(4), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
+                    ItemId = reader.GetString(5),
+                    Client = reader.GetString(6),
+                    DeviceName = reader.GetString(7),
+                    PlayMethod = reader.GetString(8)
                 });
             }
             catch (Exception ex) when (ex is ArgumentException or JsonException or FormatException or OverflowException)

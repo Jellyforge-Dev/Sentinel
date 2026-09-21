@@ -20,5 +20,19 @@
   "BITRATE_CAP_EXCEEDED_EXPLANATION": "Filens bitrate ligger över vad din anslutning eller enhetsprofil tillåter, så Jellyfin var tvungen att omkoda ner den — ingen kodek- eller formatkonflikt låg bakom.",
   "BITRATE_CAP_EXCEEDED_RECOMMENDATION": "Om det här händer ofta kan du överväga en kodning med lägre bitrate av den här titeln eller kontrollera bitrategränsen för ditt nätverk eller din enhet.",
   "RESOLUTION_DOWNSCALE_ONLY_EXPLANATION": "Videons upplösning ligger över vad din anslutning eller enhet tillåter, så Jellyfin var tvungen att skala ner (och omkoda) den — ingen kodek- eller formatkonflikt låg bakom.",
-  "RESOLUTION_DOWNSCALE_ONLY_RECOMMENDATION": "Det här är en nätverks-/enhetsbegränsning, inte ett formatproblem — en version av den här titeln med lägre upplösning skulle spelas upp direkt (direct play)."
+  "RESOLUTION_DOWNSCALE_ONLY_RECOMMENDATION": "Det här är en nätverks-/enhetsbegränsning, inte ett formatproblem — en version av den här titeln med lägre upplösning skulle spelas upp direkt (direct play).",
+  "UI_TITLE": "Jellyfin Sentinel",
+  "UI_INTRO": "De senaste uppspelningsdiagnoserna som Sentinel har hittat. Klicka på en rad för att se bevisen bakom den. Det här är en minimal, skrivskyddad lista — den fullständiga incident-dashboarden (allvarlighetsgrad, bekräfta/lösa, aviseringar) är planerad men inte byggd än.",
+  "UI_COL_TIME": "Tid",
+  "UI_COL_MEDIA": "Media",
+  "UI_COL_CLIENT_DEVICE": "Klient / Enhet",
+  "UI_COL_CONFIDENCE": "Säkerhet",
+  "UI_COL_EXPLANATION": "Förklaring",
+  "UI_LOADING": "Laddar…",
+  "UI_NO_DIAGNOSES": "Inga diagnoser än — Sentinel registrerar bara en diagnos när en session faktiskt omkodades av en anledning som de nuvarande reglerna känner igen.",
+  "UI_LOAD_FAILED": "Det gick inte att läsa in diagnoser. Kontrollera Jellyfins serverlogg för mer information.",
+  "UI_EVIDENCE_LABEL": "Bevis:",
+  "UI_RECOMMENDATION_LABEL": "Rekommendation:",
+  "UI_CODE_LABEL": "Kod:",
+  "UI_KNOWN_ISSUE_LABEL": "Känd Jellyfin-bugg (inte en Sentinel-diagnos):"
 }

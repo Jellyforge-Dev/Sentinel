@@ -20,5 +20,19 @@
   "BITRATE_CAP_EXCEEDED_EXPLANATION": "Filens bitrate er højere, end din forbindelse eller enhedsprofil tillader, så Jellyfin var nødt til at transkode den ned — der var ikke tale om en codec- eller formatuoverensstemmelse.",
   "BITRATE_CAP_EXCEEDED_RECOMMENDATION": "Hvis det sker ofte, kan du overveje en version af denne titel med lavere bitrate eller tjekke bitrategrænsen for dit netværk/din enhed.",
   "RESOLUTION_DOWNSCALE_ONLY_EXPLANATION": "Denne videos opløsning er højere, end din forbindelse eller enhed tillader, så Jellyfin var nødt til at nedskalere (og transkode) den — der var ikke tale om en codec- eller formatuoverensstemmelse.",
-  "RESOLUTION_DOWNSCALE_ONLY_RECOMMENDATION": "Det er en netværks-/enhedsbegrænsning, ikke et formatproblem — en version af denne titel med lavere opløsning ville blive afspillet direkte (direct play)."
+  "RESOLUTION_DOWNSCALE_ONLY_RECOMMENDATION": "Det er en netværks-/enhedsbegrænsning, ikke et formatproblem — en version af denne titel med lavere opløsning ville blive afspillet direkte (direct play).",
+  "UI_TITLE": "Jellyfin Sentinel",
+  "UI_INTRO": "De seneste afspilningsdiagnoser, som Sentinel har fundet. Klik på en række for at se beviserne bag den. Dette er en minimal, skrivebeskyttet liste — det fulde hændelsesdashboard (alvorlighed, kvittér/løs, notifikationer) er planlagt, men endnu ikke bygget.",
+  "UI_COL_TIME": "Tid",
+  "UI_COL_MEDIA": "Medie",
+  "UI_COL_CLIENT_DEVICE": "Klient / Enhed",
+  "UI_COL_CONFIDENCE": "Sikkerhed",
+  "UI_COL_EXPLANATION": "Forklaring",
+  "UI_LOADING": "Indlæser…",
+  "UI_NO_DIAGNOSES": "Ingen diagnoser endnu — Sentinel registrerer kun en diagnose, når en session faktisk blev transkodet af en grund, som de nuværende regler genkender.",
+  "UI_LOAD_FAILED": "Kunne ikke indlæse diagnoser. Tjek Jellyfin-serverloggen for detaljer.",
+  "UI_EVIDENCE_LABEL": "Beviser:",
+  "UI_RECOMMENDATION_LABEL": "Anbefaling:",
+  "UI_CODE_LABEL": "Kode:",
+  "UI_KNOWN_ISSUE_LABEL": "Kendt Jellyfin-fejl (ikke en Sentinel-diagnose):"
 }

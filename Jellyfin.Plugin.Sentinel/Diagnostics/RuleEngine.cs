@@ -49,9 +49,7 @@ public sealed class RuleEngine
                     $"PlayMethod = {playbackEvent.PlayMethod}",
                     $"TranscodeReasons = {playbackEvent.TranscodeReasons}",
                     $"Matched rule = {rule.Code}"
-                },
-                Explanation = rule.Explain(playbackEvent),
-                Recommendation = rule.Recommendation
+                }
             });
         }
 

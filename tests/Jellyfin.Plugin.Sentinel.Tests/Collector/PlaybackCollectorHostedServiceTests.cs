@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.Sentinel.Collector;
 using Jellyfin.Plugin.Sentinel.Diagnostics;
+using Jellyfin.Plugin.Sentinel.Localization;
 using Jellyfin.Plugin.Sentinel.Persistence;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Library;
@@ -46,7 +47,7 @@ public class PlaybackCollectorHostedServiceTests : IDisposable
     private PlaybackCollectorHostedService CreateService(Mock<ISessionManager> sessionManagerMock, TimeProvider? timeProvider = null)
     {
         var playbackEventRepository = new PlaybackEventRepository(_database);
-        var diagnosisRepository = new DiagnosisRepository(_database, NullLogger<DiagnosisRepository>.Instance);
+        var diagnosisRepository = new DiagnosisRepository(_database, new LocalizationService(), NullLogger<DiagnosisRepository>.Instance);
         var ruleEngine = new RuleEngine(CoreTranscodeRules.All);
 
         return new PlaybackCollectorHostedService(

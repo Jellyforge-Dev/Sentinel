@@ -20,5 +20,19 @@
   "BITRATE_CAP_EXCEEDED_EXPLANATION": "La tasa de bits de este archivo supera lo que permite tu conexión o el perfil de tu dispositivo, así que Jellyfin tuvo que reducirla transcodificando — no hubo ninguna incompatibilidad de códec o formato.",
   "BITRATE_CAP_EXCEEDED_RECOMMENDATION": "Si esto ocurre a menudo, considera usar una versión de este título con una tasa de bits más baja o revisar el límite de tasa de bits de tu red o dispositivo.",
   "RESOLUTION_DOWNSCALE_ONLY_EXPLANATION": "La resolución de este vídeo supera lo que permite tu conexión o tu dispositivo, así que Jellyfin tuvo que reducirla (y transcodificar) — no hubo ninguna incompatibilidad de códec o formato.",
-  "RESOLUTION_DOWNSCALE_ONLY_RECOMMENDATION": "Se trata de un límite de red o de dispositivo, no de un problema de formato — una versión de este título con menor resolución se reproduciría de forma directa (direct play)."
+  "RESOLUTION_DOWNSCALE_ONLY_RECOMMENDATION": "Se trata de un límite de red o de dispositivo, no de un problema de formato — una versión de este título con menor resolución se reproduciría de forma directa (direct play).",
+  "UI_TITLE": "Jellyfin Sentinel",
+  "UI_INTRO": "Diagnósticos de reproducción recientes que Sentinel ha encontrado. Haz clic en una fila para ver las pruebas que la respaldan. Esta es una lista mínima de solo lectura — el panel completo de incidencias (gravedad, confirmar/resolver, notificaciones) está previsto pero aún no se ha creado.",
+  "UI_COL_TIME": "Hora",
+  "UI_COL_MEDIA": "Medio",
+  "UI_COL_CLIENT_DEVICE": "Cliente / Dispositivo",
+  "UI_COL_CONFIDENCE": "Confianza",
+  "UI_COL_EXPLANATION": "Explicación",
+  "UI_LOADING": "Cargando…",
+  "UI_NO_DIAGNOSES": "Todavía no hay diagnósticos — Sentinel solo registra un diagnóstico cuando una sesión se transcodifica realmente por un motivo que sus reglas actuales reconocen.",
+  "UI_LOAD_FAILED": "No se pudieron cargar los diagnósticos. Consulta el registro del servidor de Jellyfin para más detalles.",
+  "UI_EVIDENCE_LABEL": "Pruebas:",
+  "UI_RECOMMENDATION_LABEL": "Recomendación:",
+  "UI_CODE_LABEL": "Código:",
+  "UI_KNOWN_ISSUE_LABEL": "Error conocido de Jellyfin (no es un diagnóstico de Sentinel):"
 }

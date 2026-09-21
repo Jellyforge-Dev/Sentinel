@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Net.Mime;
 using Jellyfin.Plugin.Sentinel.Diagnostics;
+using Jellyfin.Plugin.Sentinel.Localization;
 using Jellyfin.Plugin.Sentinel.Persistence;
 using MediaBrowser.Common.Api;
 using MediaBrowser.Controller.Library;
@@ -23,18 +24,22 @@ public class SentinelController : ControllerBase
 {
     private readonly DiagnosisRepository _diagnosisRepository;
     private readonly ILibraryManager _libraryManager;
+    private readonly LocalizationService _localizationService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SentinelController"/> class.
     /// </summary>
     /// <param name="diagnosisRepository">Repository for reading Sentinel's collected diagnoses.</param>
     /// <param name="libraryManager">Used to resolve a media item's display name from its id.</param>
-    public SentinelController(DiagnosisRepository diagnosisRepository, ILibraryManager libraryManager)
+    /// <param name="localizationService">Used to translate the dashboard's own UI strings.</param>
+    public SentinelController(DiagnosisRepository diagnosisRepository, ILibraryManager libraryManager, LocalizationService localizationService)
     {
         ArgumentNullException.ThrowIfNull(diagnosisRepository);
         ArgumentNullException.ThrowIfNull(libraryManager);
+        ArgumentNullException.ThrowIfNull(localizationService);
         _diagnosisRepository = diagnosisRepository;
         _libraryManager = libraryManager;
+        _localizationService = localizationService;
     }
 
     /// <summary>
@@ -45,7 +50,8 @@ public class SentinelController : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     public ActionResult GetRecentDiagnoses()
     {
-        var summaries = _diagnosisRepository.GetRecent(50);
+        var language = Plugin.Instance?.Configuration.Language ?? Localization.SupportedLanguage.En;
+        var summaries = _diagnosisRepository.GetRecent(50, language);
 
         var response = summaries.Select(summary =>
         {
@@ -70,6 +76,28 @@ public class SentinelController : ControllerBase
         });
 
         return Ok(response);
+    }
+
+    /// <summary>
+    /// Gets the current language's dashboard UI strings, for the plugin's own configuration page
+    /// to render its static labels in.
+    /// </summary>
+    /// <returns>A flat object of UI_* translation keys to translated text.</returns>
+    [HttpGet("ui-strings")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public ActionResult GetUiStrings()
+    {
+        var language = Plugin.Instance?.Configuration.Language ?? Localization.SupportedLanguage.En;
+        var keys = new[]
+        {
+            "UI_TITLE", "UI_INTRO", "UI_COL_TIME", "UI_COL_MEDIA", "UI_COL_CLIENT_DEVICE",
+            "UI_COL_CONFIDENCE", "UI_COL_EXPLANATION", "UI_LOADING", "UI_NO_DIAGNOSES",
+            "UI_LOAD_FAILED", "UI_EVIDENCE_LABEL", "UI_RECOMMENDATION_LABEL", "UI_CODE_LABEL",
+            "UI_KNOWN_ISSUE_LABEL"
+        };
+
+        var result = keys.ToDictionary(key => key, key => _localizationService.Translate(key, language));
+        return Ok(result);
     }
 
     /// <summary>
