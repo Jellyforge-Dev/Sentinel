@@ -4,23 +4,42 @@
     <title>Sentinel</title>
 </head>
 <body>
-    <div id="SentinelConfigPage" data-role="page" class="page type-interior pluginConfigurationPage">
+    <div id="SentinelConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-select,emby-button">
         <div data-role="content">
             <div class="content-primary">
-                <h1>Jellyfin Sentinel</h1>
-                <p>Recent playback diagnoses Sentinel has found. Click a row to see the evidence behind it. This is a minimal, read-only list — the full incident dashboard (severity, acknowledge/resolve, notifications) is planned but not yet built.</p>
+                <h1 id="sentinelUiTitle">Jellyfin Sentinel</h1>
+                <p id="sentinelUiIntro">Recent playback diagnoses Sentinel has found. Click a row to see the evidence behind it. This is a minimal, read-only list — the full incident dashboard (severity, acknowledge/resolve, notifications) is planned but not yet built.</p>
+                <form id="SentinelConfigForm">
+                    <div class="selectContainer">
+                        <label class="selectLabel" for="SentinelLanguage">Language</label>
+                        <select is="emby-select" id="SentinelLanguage" name="SentinelLanguage" class="emby-select-withcolor emby-select">
+                            <option value="0">English</option>
+                            <option value="1">Deutsch</option>
+                            <option value="2">Español</option>
+                            <option value="3">Français</option>
+                            <option value="4">Svenska</option>
+                            <option value="5">Dansk</option>
+                            <option value="6">Polski</option>
+                        </select>
+                    </div>
+                    <div>
+                        <button is="emby-button" type="submit" class="raised button-submit block emby-button">
+                            <span>Save</span>
+                        </button>
+                    </div>
+                </form>
                 <table class="detailTable" style="width:100%">
                     <thead>
                         <tr>
-                            <th>Time</th>
-                            <th>Media</th>
-                            <th>Client / Device</th>
-                            <th>Confidence</th>
-                            <th>Explanation</th>
+                            <th id="sentinelColTime">Time</th>
+                            <th id="sentinelColMedia">Media</th>
+                            <th id="sentinelColClientDevice">Client / Device</th>
+                            <th id="sentinelColConfidence">Confidence</th>
+                            <th id="sentinelColExplanation">Explanation</th>
                         </tr>
                     </thead>
                     <tbody id="sentinelDiagnosesBody">
-                        <tr><td colspan="5">Loading…</td></tr>
+                        <tr><td colspan="5" id="sentinelLoadingRow">Loading…</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -33,10 +52,67 @@
                 // is silently discarded before it ever runs). This script must stay INSIDE
                 // #SentinelConfigPage, matching the official jellyfin-plugin-template's own
                 // configPage.html, or the page loads and does nothing.
+                var SentinelConfig = {
+                    pluginUniqueId: '4b5e3a79-7798-4066-841e-db7eb0125dc9'
+                };
+
+                // Populated from GET Sentinel/ui-strings once per pageshow. Every render function
+                // below reads through getUiString() rather than this object directly, so the page
+                // still shows sensible English text if that fetch hasn't resolved yet or fails.
+                var uiStrings = {};
+                var uiStringsDefaults = {
+                    UI_TITLE: 'Jellyfin Sentinel',
+                    UI_INTRO: 'Recent playback diagnoses Sentinel has found. Click a row to see the evidence behind it. This is a minimal, read-only list — the full incident dashboard (severity, acknowledge/resolve, notifications) is planned but not yet built.',
+                    UI_COL_TIME: 'Time',
+                    UI_COL_MEDIA: 'Media',
+                    UI_COL_CLIENT_DEVICE: 'Client / Device',
+                    UI_COL_CONFIDENCE: 'Confidence',
+                    UI_COL_EXPLANATION: 'Explanation',
+                    UI_LOADING: 'Loading…',
+                    UI_NO_DIAGNOSES: 'No diagnoses yet — Sentinel only records a diagnosis when a session actually transcoded for a reason its current rules recognize.',
+                    UI_LOAD_FAILED: 'Failed to load diagnoses. Check Jellyfin\'s server log for details.',
+                    UI_EVIDENCE_LABEL: 'Evidence:',
+                    UI_RECOMMENDATION_LABEL: 'Recommendation:',
+                    UI_CODE_LABEL: 'Code:',
+                    UI_KNOWN_ISSUE_LABEL: 'Known Jellyfin Bug (not a Sentinel diagnosis):'
+                };
+
+                function getUiString(key) {
+                    return uiStrings[key] || uiStringsDefaults[key];
+                }
+
                 function escapeHtmlText(value) {
                     var div = document.createElement('div');
                     div.textContent = value === null || value === undefined ? '' : String(value);
                     return div.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                }
+
+                function applyUiStrings() {
+                    document.querySelector('#sentinelUiTitle').textContent = getUiString('UI_TITLE');
+                    document.querySelector('#sentinelUiIntro').textContent = getUiString('UI_INTRO');
+                    document.querySelector('#sentinelColTime').textContent = getUiString('UI_COL_TIME');
+                    document.querySelector('#sentinelColMedia').textContent = getUiString('UI_COL_MEDIA');
+                    document.querySelector('#sentinelColClientDevice').textContent = getUiString('UI_COL_CLIENT_DEVICE');
+                    document.querySelector('#sentinelColConfidence').textContent = getUiString('UI_COL_CONFIDENCE');
+                    document.querySelector('#sentinelColExplanation').textContent = getUiString('UI_COL_EXPLANATION');
+
+                    // Only present until the first diagnoses fetch replaces the tbody's contents.
+                    var loadingRow = document.querySelector('#sentinelLoadingRow');
+                    if (loadingRow) {
+                        loadingRow.textContent = getUiString('UI_LOADING');
+                    }
+                }
+
+                function loadUiStrings() {
+                    var url = ApiClient.getUrl('Sentinel/ui-strings');
+
+                    ApiClient.ajax({ type: 'GET', url: url, dataType: 'json' }).then(function (strings) {
+                        uiStrings = strings || {};
+                        applyUiStrings();
+                    }).catch(function () {
+                        // Leave uiStrings empty — getUiString() falls back to uiStringsDefaults,
+                        // so the page keeps showing its English text instead of blank/undefined.
+                    });
                 }
 
                 function buildEvidenceList(evidence) {
@@ -64,7 +140,7 @@
                     // Sentinel itself inferred (master plan Section 14: "Known Jellyfin Bug",
                     // never presented as if it were a Sentinel diagnosis).
                     return '<div style="margin-top:0.5em;border-left:3px solid orange;padding-left:0.5em;">' +
-                        '<strong>Known Jellyfin Bug (not a Sentinel diagnosis):</strong> ' +
+                        '<strong>' + escapeHtmlText(getUiString('UI_KNOWN_ISSUE_LABEL')) + '</strong> ' +
                         escapeHtmlText(diagnosis.KnownIssueExplanation) + ' ' +
                         '<a href="' + escapeHtmlText(diagnosis.KnownIssueUrl) + '" target="_blank" rel="noopener noreferrer">' +
                         escapeHtmlText(diagnosis.KnownIssueUrl) + '</a></div>';
@@ -92,9 +168,9 @@
                     detailCell.colSpan = 5;
                     detailCell.style.paddingLeft = '2em';
                     detailCell.innerHTML =
-                        '<strong>Evidence:</strong><ul>' + buildEvidenceList(diagnosis.Evidence) + '</ul>' +
-                        '<strong>Recommendation:</strong> ' + escapeHtmlText(diagnosis.Recommendation) +
-                        '<div><em>Code: ' + escapeHtmlText(diagnosis.Code) + '</em></div>' +
+                        '<strong>' + escapeHtmlText(getUiString('UI_EVIDENCE_LABEL')) + '</strong><ul>' + buildEvidenceList(diagnosis.Evidence) + '</ul>' +
+                        '<strong>' + escapeHtmlText(getUiString('UI_RECOMMENDATION_LABEL')) + '</strong> ' + escapeHtmlText(diagnosis.Recommendation) +
+                        '<div><em>' + escapeHtmlText(getUiString('UI_CODE_LABEL')) + ' ' + escapeHtmlText(diagnosis.Code) + '</em></div>' +
                         buildKnownIssueBlock(diagnosis);
                     detailRow.appendChild(detailCell);
 
@@ -114,7 +190,7 @@
                         tbody.innerHTML = '';
 
                         if (!diagnoses || diagnoses.length === 0) {
-                            tbody.innerHTML = '<tr><td colspan="5">No diagnoses yet — Sentinel only records a diagnosis when a session actually transcoded for a reason its current rules recognize.</td></tr>';
+                            tbody.innerHTML = '<tr><td colspan="5">' + escapeHtmlText(getUiString('UI_NO_DIAGNOSES')) + '</td></tr>';
                             return;
                         }
 
@@ -122,12 +198,35 @@
                             appendDiagnosisRows(tbody, diagnosis);
                         });
                     }).catch(function () {
-                        tbody.innerHTML = '<tr><td colspan="5">Failed to load diagnoses. Check Jellyfin\'s server log for details.</td></tr>';
+                        tbody.innerHTML = '<tr><td colspan="5">' + escapeHtmlText(getUiString('UI_LOAD_FAILED')) + '</td></tr>';
+                    });
+                }
+
+                function loadLanguageSetting() {
+                    Dashboard.showLoadingMsg();
+                    ApiClient.getPluginConfiguration(SentinelConfig.pluginUniqueId).then(function (config) {
+                        document.querySelector('#SentinelLanguage').value = String(config.Language);
+                        Dashboard.hideLoadingMsg();
                     });
                 }
 
                 document.querySelector('#SentinelConfigPage').addEventListener('pageshow', function () {
+                    loadUiStrings();
                     loadDiagnoses();
+                    loadLanguageSetting();
+                });
+
+                document.querySelector('#SentinelConfigForm').addEventListener('submit', function (e) {
+                    Dashboard.showLoadingMsg();
+                    ApiClient.getPluginConfiguration(SentinelConfig.pluginUniqueId).then(function (config) {
+                        config.Language = parseInt(document.querySelector('#SentinelLanguage').value, 10);
+                        ApiClient.updatePluginConfiguration(SentinelConfig.pluginUniqueId, config).then(function (result) {
+                            Dashboard.processPluginConfigurationUpdateResult(result);
+                        });
+                    });
+
+                    e.preventDefault();
+                    return false;
                 });
             })();
         </script>
