@@ -127,11 +127,33 @@ public class SentinelDatabaseTests : IDisposable
 
             var playbackEventId = playbackEventRepository.Insert(playbackEvent);
 
-            using var readConnection = migratedDatabase.OpenConnection();
-            using var readCommand = readConnection.CreateCommand();
-            readCommand.CommandText = "SELECT UserName FROM PlaybackEvent WHERE Id = $id;";
-            readCommand.Parameters.AddWithValue("$id", playbackEventId);
-            Assert.Equal("Alice", (string)readCommand.ExecuteScalar()!);
+            using (var readConnection = migratedDatabase.OpenConnection())
+            using (var readCommand = readConnection.CreateCommand())
+            {
+                readCommand.CommandText = "SELECT UserName FROM PlaybackEvent WHERE Id = $id;";
+                readCommand.Parameters.AddWithValue("$id", playbackEventId);
+                Assert.Equal("Alice", (string)readCommand.ExecuteScalar()!);
+            }
+
+            // Proving PlaybackEvent's UserName round-trips post-migration doesn't prove Incident's
+            // does too, even though AddColumnIfMissing is the identical helper called identically
+            // for both tables — Incident has its own INSERT/UPDATE SQL in IncidentRepository,
+            // which could independently have an off-by-one or a forgotten column reference that
+            // PlaybackEvent's own round-trip would never catch.
+            var diagnosisRepository = new DiagnosisRepository(migratedDatabase, new LocalizationService(), NullLogger<DiagnosisRepository>.Instance);
+            var diagnosisId = diagnosisRepository.Insert(playbackEventId, new Diagnosis
+            {
+                Code = "VIDEO_CODEC_UNSUPPORTED",
+                Confidence = Confidence.Confirmed,
+                Evidence = new[] { "TranscodeReasons = VideoCodecNotSupported" }
+            });
+
+            var incidentRepository = new IncidentRepository(migratedDatabase);
+            incidentRepository.UpsertOnDiagnosis(diagnosisId, "VIDEO_CODEC_UNSUPPORTED", "item-migrated", "Fire TV", "Living Room TV", "Alice");
+
+            var incidents = incidentRepository.GetRecent(50);
+            Assert.Single(incidents);
+            Assert.Equal("Alice", incidents[0].UserName);
         }
         finally
         {
