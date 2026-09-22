@@ -170,7 +170,8 @@ public class SentinelController : ControllerBase
             "UI_COL_STATUS", "UI_COL_OCCURRENCES", "UI_COL_FIRST_SEEN", "UI_COL_LAST_SEEN",
             "UI_ACKNOWLEDGE_BUTTON", "UI_RESOLVE_BUTTON",
             "UI_STATUS_DETECTED", "UI_STATUS_ACKNOWLEDGED", "UI_STATUS_RESOLVED", "UI_STATUS_REOPENED",
-            "UI_NO_INCIDENTS", "UI_LOAD_INCIDENTS_FAILED"
+            "UI_NO_INCIDENTS", "UI_LOAD_INCIDENTS_FAILED",
+            "UI_COL_USER", "UI_STATS_TOTAL", "UI_STATS_ACTIVE", "UI_FILTER_ALL", "UI_NO_INCIDENTS_FOR_FILTER"
         };
 
         var result = keys.ToDictionary(key => key, key => _localizationService.Translate(key, language));

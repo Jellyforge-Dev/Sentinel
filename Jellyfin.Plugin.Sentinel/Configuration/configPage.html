@@ -29,14 +29,29 @@
                     </div>
                 </form>
                 <style>
+                    #SentinelConfigPage {
+                        --sentinel-radius: 8px;
+                        --sentinel-gap-sm: 0.5em;
+                        --sentinel-gap-md: 0.75em;
+                        --sentinel-border: rgba(127, 127, 127, 0.25);
+                        --sentinel-surface: rgba(127, 127, 127, 0.08);
+                    }
                     .sentinelIncidentCard {
-                        background: rgba(127, 127, 127, 0.08);
-                        border: 1px solid rgba(127, 127, 127, 0.25);
+                        background: var(--sentinel-surface);
+                        border: 1px solid var(--sentinel-border);
                         border-left-width: 4px;
-                        border-radius: 6px;
-                        padding: 0.75em 1em;
-                        margin-bottom: 0.75em;
+                        border-radius: var(--sentinel-radius);
+                        padding: var(--sentinel-gap-md) 1em;
+                        margin-bottom: var(--sentinel-gap-md);
                         cursor: pointer;
+                        transition: box-shadow 0.15s ease, transform 0.15s ease;
+                    }
+                    .sentinelIncidentCard:hover {
+                        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+                        transform: translateY(-1px);
+                    }
+                    .sentinelIncidentCard.sentinelStatusResolved {
+                        opacity: 0.7;
                     }
                     .sentinelIncidentCard.sentinelStatusDetected { border-left-color: #4a90d9; }
                     .sentinelIncidentCard.sentinelStatusAcknowledged { border-left-color: #e0a030; }
@@ -75,13 +90,38 @@
                     .sentinelIncidentDetail {
                         margin-top: 0.75em;
                         padding-top: 0.6em;
-                        border-top: 1px solid rgba(127, 127, 127, 0.25);
+                        border-top: 1px solid var(--sentinel-border);
                     }
                     .sentinelIncidentPlaceholder { opacity: 0.7; padding: 1em 0; }
+                    .sentinelFilterBar {
+                        display: flex;
+                        flex-wrap: wrap;
+                        gap: var(--sentinel-gap-sm);
+                        margin-bottom: var(--sentinel-gap-md);
+                    }
+                    .sentinelFilterTab {
+                        background: var(--sentinel-surface);
+                        border: 1px solid var(--sentinel-border);
+                        border-radius: 999px;
+                        padding: 0.35em 0.9em;
+                        font-size: 0.85em;
+                        cursor: pointer;
+                        transition: background 0.15s ease, border-color 0.15s ease;
+                    }
+                    .sentinelFilterTab:hover {
+                        background: rgba(127, 127, 127, 0.16);
+                    }
+                    .sentinelFilterTab.sentinelFilterTabActive {
+                        background: #4a90d9;
+                        border-color: #4a90d9;
+                        color: #fff;
+                        font-weight: 600;
+                    }
                     @media (max-width: 600px) {
                         .sentinelIncidentHeader { flex-direction: column; align-items: flex-start; }
                     }
                 </style>
+                <div id="sentinelFilterBar" class="sentinelFilterBar"></div>
                 <div id="sentinelIncidentsContainer">
                     <div id="sentinelLoadingRow" class="sentinelIncidentPlaceholder">Loading…</div>
                 </div>
@@ -103,6 +143,15 @@
                 // below reads through getUiString() rather than this object directly, so the page
                 // still shows sensible English text if that fetch hasn't resolved yet or fails.
                 var uiStrings = {};
+                var currentIncidents = [];
+                var currentFilter = 'All';
+
+                var FILTER_DEFINITIONS = [
+                    { key: 'All', labelKey: 'UI_FILTER_ALL', match: function () { return true; } },
+                    { key: 'Active', labelKey: 'UI_STATS_ACTIVE', match: function (incident) { return incident.Status === 'Detected' || incident.Status === 'Reopened'; } },
+                    { key: 'Acknowledged', labelKey: 'UI_STATUS_ACKNOWLEDGED', match: function (incident) { return incident.Status === 'Acknowledged'; } },
+                    { key: 'Resolved', labelKey: 'UI_STATUS_RESOLVED', match: function (incident) { return incident.Status === 'Resolved'; } }
+                ];
                 var uiStringsDefaults = {
                     UI_TITLE: 'Jellyfin Sentinel',
                     UI_INTRO: 'Incidents Sentinel has detected, grouped by media, client, and device. Click a card to see the evidence behind it.',
@@ -129,7 +178,12 @@
                     UI_STATUS_RESOLVED: 'Resolved',
                     UI_STATUS_REOPENED: 'Reopened',
                     UI_NO_INCIDENTS: 'No incidents yet — Sentinel only records an incident when a session actually transcoded for a reason its current rules recognize.',
-                    UI_LOAD_INCIDENTS_FAILED: 'Failed to load incidents. Check Jellyfin\'s server log for details.'
+                    UI_LOAD_INCIDENTS_FAILED: 'Failed to load incidents. Check Jellyfin\'s server log for details.',
+                    UI_COL_USER: 'User',
+                    UI_STATS_TOTAL: 'Total',
+                    UI_STATS_ACTIVE: 'Active',
+                    UI_FILTER_ALL: 'All',
+                    UI_NO_INCIDENTS_FOR_FILTER: 'No incidents match this filter.'
                 };
 
                 function getUiString(key) {
@@ -237,6 +291,7 @@
                     meta.className = 'sentinelIncidentMeta';
                     meta.textContent =
                         incident.Client + ' / ' + incident.DeviceName +
+                        (incident.UserName ? ' · ' + getUiString('UI_COL_USER') + ': ' + incident.UserName : '') +
                         ' · ' + getUiString('UI_COL_FIRST_SEEN') + ': ' + new Date(incident.FirstSeenUtc).toLocaleString() +
                         ' · ' + getUiString('UI_COL_LAST_SEEN') + ': ' + new Date(incident.LastSeenUtc).toLocaleString() +
                         (incident.Confidence ? ' · ' + getUiString('UI_COL_CONFIDENCE') + ': ' + incident.Confidence : '');
@@ -290,25 +345,62 @@
                     return card;
                 }
 
-                function loadIncidents() {
+                function renderFilterBar() {
+                    var bar = document.querySelector('#sentinelFilterBar');
+                    bar.innerHTML = '';
+
+                    FILTER_DEFINITIONS.forEach(function (definition) {
+                        var count = currentIncidents.filter(definition.match).length;
+                        var tab = document.createElement('button');
+                        tab.type = 'button';
+                        tab.className = 'sentinelFilterTab' + (currentFilter === definition.key ? ' sentinelFilterTabActive' : '');
+                        tab.textContent = getUiString(definition.labelKey) + ' (' + count + ')';
+                        tab.addEventListener('click', function () {
+                            currentFilter = definition.key;
+                            renderFilterBar();
+                            renderIncidentCards();
+                        });
+                        bar.appendChild(tab);
+                    });
+                }
+
+                function renderIncidentCards() {
                     var container = document.querySelector('#sentinelIncidentsContainer');
+                    container.innerHTML = '';
+
+                    if (currentIncidents.length === 0) {
+                        var emptyState = document.createElement('div');
+                        emptyState.className = 'sentinelIncidentPlaceholder';
+                        emptyState.textContent = getUiString('UI_NO_INCIDENTS');
+                        container.appendChild(emptyState);
+                        return;
+                    }
+
+                    var activeDefinition = FILTER_DEFINITIONS.filter(function (d) { return d.key === currentFilter; })[0] || FILTER_DEFINITIONS[0];
+                    var filtered = currentIncidents.filter(activeDefinition.match);
+
+                    if (filtered.length === 0) {
+                        var noMatchState = document.createElement('div');
+                        noMatchState.className = 'sentinelIncidentPlaceholder';
+                        noMatchState.textContent = getUiString('UI_NO_INCIDENTS_FOR_FILTER');
+                        container.appendChild(noMatchState);
+                        return;
+                    }
+
+                    filtered.forEach(function (incident) {
+                        container.appendChild(buildIncidentCard(incident));
+                    });
+                }
+
+                function loadIncidents() {
                     var url = ApiClient.getUrl('Sentinel/incidents');
 
                     ApiClient.ajax({ type: 'GET', url: url, dataType: 'json' }).then(function (incidents) {
-                        container.innerHTML = '';
-
-                        if (!incidents || incidents.length === 0) {
-                            var emptyState = document.createElement('div');
-                            emptyState.className = 'sentinelIncidentPlaceholder';
-                            emptyState.textContent = getUiString('UI_NO_INCIDENTS');
-                            container.appendChild(emptyState);
-                            return;
-                        }
-
-                        incidents.forEach(function (incident) {
-                            container.appendChild(buildIncidentCard(incident));
-                        });
+                        currentIncidents = incidents || [];
+                        renderFilterBar();
+                        renderIncidentCards();
                     }).catch(function () {
+                        var container = document.querySelector('#sentinelIncidentsContainer');
                         container.innerHTML = '';
                         var errorState = document.createElement('div');
                         errorState.className = 'sentinelIncidentPlaceholder';

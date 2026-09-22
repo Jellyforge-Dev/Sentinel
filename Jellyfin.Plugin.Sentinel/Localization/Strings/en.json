@@ -46,5 +46,10 @@
   "UI_STATUS_RESOLVED": "Resolved",
   "UI_STATUS_REOPENED": "Reopened",
   "UI_NO_INCIDENTS": "No incidents yet — Sentinel only records an incident when a session actually transcoded for a reason its current rules recognize.",
-  "UI_LOAD_INCIDENTS_FAILED": "Failed to load incidents. Check Jellyfin's server log for details."
+  "UI_LOAD_INCIDENTS_FAILED": "Failed to load incidents. Check Jellyfin's server log for details.",
+  "UI_COL_USER": "User",
+  "UI_STATS_TOTAL": "Total",
+  "UI_STATS_ACTIVE": "Active",
+  "UI_FILTER_ALL": "All",
+  "UI_NO_INCIDENTS_FOR_FILTER": "No incidents match this filter."
 }

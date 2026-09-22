@@ -46,5 +46,10 @@
   "UI_STATUS_RESOLVED": "Löst",
   "UI_STATUS_REOPENED": "Återöppnad",
   "UI_NO_INCIDENTS": "Inga incidenter ännu — Sentinel registrerar bara en incident när en session faktiskt kodades om av en anledning som de nuvarande reglerna känner igen.",
-  "UI_LOAD_INCIDENTS_FAILED": "Det gick inte att läsa in incidenter. Se Jellyfins serverlogg för mer information."
+  "UI_LOAD_INCIDENTS_FAILED": "Det gick inte att läsa in incidenter. Se Jellyfins serverlogg för mer information.",
+  "UI_COL_USER": "Användare",
+  "UI_STATS_TOTAL": "Totalt",
+  "UI_STATS_ACTIVE": "Aktiva",
+  "UI_FILTER_ALL": "Alla",
+  "UI_NO_INCIDENTS_FOR_FILTER": "Inga incidenter matchar detta filter."
 }
