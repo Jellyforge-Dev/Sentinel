@@ -190,6 +190,35 @@ public class PlaybackEventFactoryTests
     }
 
     [Fact]
+    public void FromEventArgs_ReadsUserNameFromSession()
+    {
+        // UserName, like Client/DeviceName, is never cleared by Jellyfin before firing
+        // PlaybackStopped, so it's read directly off the session rather than through the
+        // progress-snapshot mechanism (see PlaybackEventFactory's own remarks).
+        var sessionManager = new Mock<ISessionManager>();
+        var session = new SessionInfo(sessionManager.Object, NullLogger.Instance)
+        {
+            Id = "session-username",
+            Client = "Fire TV",
+            DeviceName = "Living Room TV",
+            UserName = "Alice",
+            PlayState = new PlayerStateInfo(),
+            TranscodingInfo = null
+        };
+
+        var args = new PlaybackStopEventArgs
+        {
+            Session = session,
+            Item = new Movie { Id = Guid.NewGuid() }
+        };
+
+        var result = PlaybackEventFactory.FromEventArgs(args, progressSnapshot: null);
+
+        Assert.NotNull(result);
+        Assert.Equal("Alice", result!.UserName);
+    }
+
+    [Fact]
     public void FromEventArgs_ReturnsNull_WhenSessionIsMissing()
     {
         var args = new PlaybackStopEventArgs

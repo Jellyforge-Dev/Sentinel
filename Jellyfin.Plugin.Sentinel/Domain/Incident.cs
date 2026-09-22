@@ -24,6 +24,9 @@ public sealed class Incident
     /// <summary>Gets the device name this incident's fingerprint is keyed on.</summary>
     public required string DeviceName { get; init; }
 
+    /// <summary>Gets the Jellyfin username most recently affected by this incident.</summary>
+    public required string UserName { get; init; }
+
     /// <summary>Gets the current lifecycle state.</summary>
     public required IncidentStatus Status { get; init; }
 

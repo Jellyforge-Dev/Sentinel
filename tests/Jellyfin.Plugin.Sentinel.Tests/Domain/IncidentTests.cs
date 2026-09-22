@@ -20,6 +20,7 @@ public class IncidentTests
             ItemId = "item-1",
             Client = "Fire TV",
             DeviceName = "Living Room",
+            UserName = "Alice",
             Status = IncidentStatus.Acknowledged,
             OccurrenceCount = 3,
             FirstSeenUtc = firstSeen,
@@ -33,6 +34,7 @@ public class IncidentTests
         Assert.Equal("item-1", incident.ItemId);
         Assert.Equal("Fire TV", incident.Client);
         Assert.Equal("Living Room", incident.DeviceName);
+        Assert.Equal("Alice", incident.UserName);
         Assert.Equal(IncidentStatus.Acknowledged, incident.Status);
         Assert.Equal(3, incident.OccurrenceCount);
         Assert.Equal(firstSeen, incident.FirstSeenUtc);

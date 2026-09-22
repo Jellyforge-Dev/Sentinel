@@ -32,6 +32,7 @@ public class SentinelDatabaseTests : IDisposable
             ItemId = "item-1",
             Client = "Fire TV",
             DeviceName = "Living Room TV",
+            UserName = "Alice",
             PlayMethod = MediaBrowser.Model.Session.PlayMethod.Transcode,
             TranscodeReasons = MediaBrowser.Model.Session.TranscodeReason.VideoCodecNotSupported,
             VideoCodec = "hevc",
@@ -56,6 +57,90 @@ public class SentinelDatabaseTests : IDisposable
         Assert.Single(stored);
         Assert.Equal("VIDEO_CODEC_UNSUPPORTED", stored[0].Code);
         Assert.Equal("Confirmed", stored[0].Confidence);
+    }
+
+    [Fact]
+    public void Initialize_AddsUserNameColumn_ToPreExistingPlaybackEventAndIncidentTables()
+    {
+        var migrationDbPath = Path.Combine(Path.GetTempPath(), $"sentinel-migration-test-{Guid.NewGuid()}.db");
+        try
+        {
+            using (var connection = new SqliteConnection($"Data Source={migrationDbPath}"))
+            {
+                connection.Open();
+                using var command = connection.CreateCommand();
+
+                // The pre-migration schema — no UserName column on either table, matching what a
+                // real install created before this change shipped.
+                command.CommandText =
+                    """
+                    CREATE TABLE PlaybackEvent (
+                        Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        SessionId TEXT NOT NULL,
+                        ItemId TEXT NOT NULL,
+                        Client TEXT NOT NULL,
+                        DeviceName TEXT NOT NULL,
+                        PlayMethod TEXT NOT NULL,
+                        TranscodeReasons INTEGER NOT NULL,
+                        VideoCodec TEXT NULL,
+                        AudioCodec TEXT NULL,
+                        SubtitleFormat TEXT NULL,
+                        CreatedAtUtc TEXT NOT NULL
+                    );
+
+                    CREATE TABLE Incident (
+                        Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        Code TEXT NOT NULL,
+                        ItemId TEXT NOT NULL,
+                        Client TEXT NOT NULL,
+                        DeviceName TEXT NOT NULL,
+                        Status TEXT NOT NULL,
+                        OccurrenceCount INTEGER NOT NULL,
+                        FirstSeenUtc TEXT NOT NULL,
+                        LastSeenUtc TEXT NOT NULL,
+                        AcknowledgedAtUtc TEXT NULL,
+                        ResolvedAtUtc TEXT NULL
+                    );
+                    """;
+                command.ExecuteNonQuery();
+            }
+
+            SqliteConnection.ClearAllPools();
+
+            // Constructing SentinelDatabase runs Initialize(), including the guarded
+            // AddColumnIfMissing migration — this must not throw against a database that predates
+            // the UserName column.
+            var migratedDatabase = new SentinelDatabase(migrationDbPath);
+            var playbackEventRepository = new PlaybackEventRepository(migratedDatabase);
+
+            var playbackEvent = new PlaybackEvent
+            {
+                SessionId = "session-migrated",
+                ItemId = "item-migrated",
+                Client = "Fire TV",
+                DeviceName = "Living Room TV",
+                UserName = "Alice",
+                PlayMethod = MediaBrowser.Model.Session.PlayMethod.Transcode,
+                TranscodeReasons = MediaBrowser.Model.Session.TranscodeReason.VideoCodecNotSupported,
+                CreatedAtUtc = DateTime.UtcNow
+            };
+
+            var playbackEventId = playbackEventRepository.Insert(playbackEvent);
+
+            using var readConnection = migratedDatabase.OpenConnection();
+            using var readCommand = readConnection.CreateCommand();
+            readCommand.CommandText = "SELECT UserName FROM PlaybackEvent WHERE Id = $id;";
+            readCommand.Parameters.AddWithValue("$id", playbackEventId);
+            Assert.Equal("Alice", (string)readCommand.ExecuteScalar()!);
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            if (File.Exists(migrationDbPath))
+            {
+                File.Delete(migrationDbPath);
+            }
+        }
     }
 
     public void Dispose()

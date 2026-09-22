@@ -21,6 +21,9 @@ public sealed class PlaybackEvent
     /// <summary>Gets the device name reported by the client.</summary>
     public required string DeviceName { get; init; }
 
+    /// <summary>Gets the Jellyfin username for the session, if one was reported.</summary>
+    public required string UserName { get; init; }
+
     /// <summary>Gets how playback was delivered (direct play, direct stream, or transcode).</summary>
     public PlayMethod? PlayMethod { get; init; }
 

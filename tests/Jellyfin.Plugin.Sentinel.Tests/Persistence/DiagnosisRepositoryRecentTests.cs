@@ -33,11 +33,11 @@ public class DiagnosisRepositoryRecentTests : IDisposable
         // the same DateTime.UtcNow tick (a real possibility on Windows, where timer resolution can
         // exceed the gap between two fast inserts) still sort deterministically by insertion order.
         var olderItemId = Guid.NewGuid().ToString();
-        var olderEventId = InsertPlaybackEvent("session-old", "Fire TV", "Living Room", olderItemId);
+        var olderEventId = InsertPlaybackEvent("session-old", "Fire TV", "Living Room", olderItemId, userName: "Bob");
         _diagnosisRepository.Insert(olderEventId, BuildDiagnosis("OLDER_CODE"));
 
         var newerItemId = Guid.NewGuid().ToString();
-        var newerEventId = InsertPlaybackEvent("session-new", "Chromecast", "Kitchen", newerItemId);
+        var newerEventId = InsertPlaybackEvent("session-new", "Chromecast", "Kitchen", newerItemId, userName: "Alice");
         _diagnosisRepository.Insert(newerEventId, BuildDiagnosis("NEWER_CODE"));
 
         var recent = _diagnosisRepository.GetRecent(50, SupportedLanguage.En);
@@ -57,12 +57,14 @@ public class DiagnosisRepositoryRecentTests : IDisposable
         Assert.Equal(newerItemId, newer.ItemId);
         Assert.Equal("Chromecast", newer.Client);
         Assert.Equal("Kitchen", newer.DeviceName);
+        Assert.Equal("Alice", newer.UserName);
         Assert.Equal("Transcode", newer.PlayMethod);
 
         var older = recent[1];
         Assert.Equal("OLDER_CODE", older.Code);
         Assert.Equal(olderItemId, older.ItemId);
         Assert.Equal("Fire TV", older.Client);
+        Assert.Equal("Bob", older.UserName);
         Assert.True(older.Id < newer.Id);
     }
 
@@ -119,7 +121,7 @@ public class DiagnosisRepositoryRecentTests : IDisposable
         Assert.Equal(new[] { "fact one", "fact two" }, recent[0].Evidence);
     }
 
-    private long InsertPlaybackEvent(string sessionId, string client, string deviceName, string? itemId = null)
+    private long InsertPlaybackEvent(string sessionId, string client, string deviceName, string? itemId = null, string userName = "Alice")
     {
         var playbackEvent = new PlaybackEvent
         {
@@ -127,6 +129,7 @@ public class DiagnosisRepositoryRecentTests : IDisposable
             ItemId = itemId ?? Guid.NewGuid().ToString(),
             Client = client,
             DeviceName = deviceName,
+            UserName = userName,
             PlayMethod = MediaBrowser.Model.Session.PlayMethod.Transcode,
             TranscodeReasons = MediaBrowser.Model.Session.TranscodeReason.VideoCodecNotSupported,
             CreatedAtUtc = DateTime.UtcNow

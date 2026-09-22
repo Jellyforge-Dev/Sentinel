@@ -240,7 +240,7 @@ public sealed partial class PlaybackCollectorHostedService : IHostedService
             foreach (var diagnosis in diagnoses)
             {
                 var diagnosisId = _diagnosisRepository.Insert(playbackEventId, diagnosis);
-                _incidentRepository.UpsertOnDiagnosis(diagnosisId, diagnosis.Code, playbackEvent.ItemId, playbackEvent.Client, playbackEvent.DeviceName);
+                _incidentRepository.UpsertOnDiagnosis(diagnosisId, diagnosis.Code, playbackEvent.ItemId, playbackEvent.Client, playbackEvent.DeviceName, playbackEvent.UserName);
                 LogDiagnosis(_logger, diagnosis.Code, diagnosis.Confidence, playbackEvent.SessionId);
             }
         }

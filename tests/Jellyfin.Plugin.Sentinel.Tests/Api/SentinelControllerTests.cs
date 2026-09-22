@@ -50,6 +50,7 @@ public class SentinelControllerTests : IDisposable
             ItemId = Guid.NewGuid().ToString(),
             Client = "Fire TV",
             DeviceName = "Living Room",
+            UserName = "Alice",
             PlayMethod = MediaBrowser.Model.Session.PlayMethod.Transcode,
             TranscodeReasons = MediaBrowser.Model.Session.TranscodeReason.VideoCodecNotSupported,
             CreatedAtUtc = DateTime.UtcNow
@@ -72,6 +73,8 @@ public class SentinelControllerTests : IDisposable
         Assert.Equal(
             "Your device can't play this video's codec natively, so Jellyfin had to convert it on the fly.",
             explanation);
+        var userName = response[0].GetType().GetProperty("UserName")!.GetValue(response[0]);
+        Assert.Equal("Alice", userName);
     }
 
     [Fact]
@@ -104,6 +107,7 @@ public class SentinelControllerTests : IDisposable
             ItemId = episodeId.ToString(),
             Client = "Web",
             DeviceName = "Browser",
+            UserName = "Alice",
             PlayMethod = MediaBrowser.Model.Session.PlayMethod.DirectStream,
             CreatedAtUtc = DateTime.UtcNow
         };
@@ -145,6 +149,7 @@ public class SentinelControllerTests : IDisposable
             ItemId = movieId.ToString(),
             Client = "Roku",
             DeviceName = "TV",
+            UserName = "Alice",
             PlayMethod = MediaBrowser.Model.Session.PlayMethod.DirectPlay,
             CreatedAtUtc = DateTime.UtcNow
         };
@@ -175,6 +180,7 @@ public class SentinelControllerTests : IDisposable
             ItemId = Guid.NewGuid().ToString(),
             Client = "Fire TV",
             DeviceName = "Living Room",
+            UserName = "Alice",
             PlayMethod = MediaBrowser.Model.Session.PlayMethod.Transcode,
             TranscodeReasons = MediaBrowser.Model.Session.TranscodeReason.VideoCodecNotSupported,
             CreatedAtUtc = DateTime.UtcNow
@@ -188,7 +194,7 @@ public class SentinelControllerTests : IDisposable
             Evidence = new[] { "TranscodeReasons = VideoCodecNotSupported" }
         };
         var diagnosisId = _diagnosisRepository.Insert(playbackEventId, diagnosis);
-        _incidentRepository.UpsertOnDiagnosis(diagnosisId, diagnosis.Code, playbackEvent.ItemId, playbackEvent.Client, playbackEvent.DeviceName);
+        _incidentRepository.UpsertOnDiagnosis(diagnosisId, diagnosis.Code, playbackEvent.ItemId, playbackEvent.Client, playbackEvent.DeviceName, playbackEvent.UserName);
 
         var result = Assert.IsType<OkObjectResult>(_controller.GetIncidents());
         var response = Assert.IsAssignableFrom<IEnumerable<object>>(result.Value).ToList();
@@ -204,6 +210,8 @@ public class SentinelControllerTests : IDisposable
         Assert.Equal("Detected", status);
         var confidence = response[0].GetType().GetProperty("Confidence")!.GetValue(response[0]);
         Assert.Equal("Confirmed", confidence);
+        var userName = response[0].GetType().GetProperty("UserName")!.GetValue(response[0]);
+        Assert.Equal("Alice", userName);
     }
 
     [Fact]
@@ -215,6 +223,7 @@ public class SentinelControllerTests : IDisposable
             ItemId = Guid.NewGuid().ToString(),
             Client = "Fire TV",
             DeviceName = "Living Room",
+            UserName = "Alice",
             PlayMethod = MediaBrowser.Model.Session.PlayMethod.Transcode,
             TranscodeReasons = MediaBrowser.Model.Session.TranscodeReason.VideoCodecNotSupported,
             CreatedAtUtc = DateTime.UtcNow
@@ -228,7 +237,7 @@ public class SentinelControllerTests : IDisposable
             Evidence = new[] { "TranscodeReasons = VideoCodecNotSupported" }
         };
         var diagnosisId = _diagnosisRepository.Insert(playbackEventId, diagnosis);
-        var incidentId = _incidentRepository.UpsertOnDiagnosis(diagnosisId, diagnosis.Code, playbackEvent.ItemId, playbackEvent.Client, playbackEvent.DeviceName);
+        var incidentId = _incidentRepository.UpsertOnDiagnosis(diagnosisId, diagnosis.Code, playbackEvent.ItemId, playbackEvent.Client, playbackEvent.DeviceName, playbackEvent.UserName);
 
         Assert.IsType<OkResult>(_controller.AcknowledgeIncident(incidentId));
 
@@ -249,6 +258,7 @@ public class SentinelControllerTests : IDisposable
             ItemId = Guid.NewGuid().ToString(),
             Client = "Fire TV",
             DeviceName = "Living Room",
+            UserName = "Alice",
             PlayMethod = MediaBrowser.Model.Session.PlayMethod.Transcode,
             TranscodeReasons = MediaBrowser.Model.Session.TranscodeReason.VideoCodecNotSupported,
             CreatedAtUtc = DateTime.UtcNow
@@ -262,7 +272,7 @@ public class SentinelControllerTests : IDisposable
             Evidence = new[] { "TranscodeReasons = VideoCodecNotSupported" }
         };
         var diagnosisId = _diagnosisRepository.Insert(playbackEventId, diagnosis);
-        var incidentId = _incidentRepository.UpsertOnDiagnosis(diagnosisId, diagnosis.Code, playbackEvent.ItemId, playbackEvent.Client, playbackEvent.DeviceName);
+        var incidentId = _incidentRepository.UpsertOnDiagnosis(diagnosisId, diagnosis.Code, playbackEvent.ItemId, playbackEvent.Client, playbackEvent.DeviceName, playbackEvent.UserName);
 
         Assert.IsType<OkResult>(_controller.ResolveIncident(incidentId));
 

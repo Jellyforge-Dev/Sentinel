@@ -88,6 +88,7 @@ public static class PlaybackEventFactory
             ItemId = args.Item.Id.ToString(),
             Client = session.Client ?? string.Empty,
             DeviceName = session.DeviceName ?? string.Empty,
+            UserName = session.UserName ?? string.Empty,
             PlayMethod = playMethod,
             TranscodeReasons = transcodeReasons,
             VideoCodec = progressSnapshot?.VideoCodec ?? transcodingInfo?.VideoCodec,
