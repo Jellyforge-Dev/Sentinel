@@ -23,6 +23,17 @@ owner: "Jellyforge-Dev"
 # actually produces. If the SQLite package version ever changes, re-run publish and re-check
 # this list rather than assuming it's still accurate.
 #
+# MailKit (added for the Email notification channel) re-verified the same way on 2026-09-23
+# (MailKit 4.18.0): ran `dotnet publish -c Release` twice — once with the MailKit
+# PackageReference in place, once with it (and the code referencing it) temporarily removed —
+# and diffed the two output file lists. MailKit brings in exactly three new managed files, no
+# native/runtimes subfolder: MailKit.dll, MimeKit.dll, BouncyCastle.Cryptography.dll. Notably
+# absent is System.Security.Cryptography.Pkcs.dll, which a throwaway console-project publish
+# had suggested might also be new — in this project it's already supplied by the
+# `<FrameworkReference Include="Microsoft.AspNetCore.App" />` above (part of the ASP.NET Core
+# shared framework Jellyfin's host always provides), so it correctly does NOT appear as a new
+# publish-output file here and must not be added to the artifact list below.
+#
 # Native runtime entries below are limited to Jellyfin's own officially supported server
 # platforms (Windows x64/arm64, Linux x64/arm64, macOS x64/arm64) rather than every RID the
 # publish step emits (it also produces linux-arm/armel/musl-*/mips64/ppc64le/riscv64/s390x,
@@ -51,6 +62,9 @@ artifacts:
 - "SQLitePCLRaw.core.dll"
 - "SQLitePCLRaw.batteries_v2.dll"
 - "SQLitePCLRaw.provider.e_sqlite3.dll"
+- "MailKit.dll"
+- "MimeKit.dll"
+- "BouncyCastle.Cryptography.dll"
 - "runtimes/win-x64/native/e_sqlite3.dll.win"
 - "runtimes/win-arm64/native/e_sqlite3.dll.win"
 - "runtimes/linux-x64/native/libe_sqlite3.so"

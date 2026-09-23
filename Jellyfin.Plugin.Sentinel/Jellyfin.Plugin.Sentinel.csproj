@@ -21,6 +21,7 @@
          needs a compile-time type from this assembly to register a custom native-library
          resolver — see the comment in Plugin.cs for why that resolver is required at all. -->
     <PackageReference Include="SQLitePCLRaw.provider.e_sqlite3" Version="2.1.12" />
+    <PackageReference Include="MailKit" Version="4.18.0" />
     <!-- Gives SentinelController compile-time access to ControllerBase/[ApiController]/[Authorize]
          without bundling any ASP.NET Core assemblies — FrameworkReference is never copied into the
          publish output, since Jellyfin's own host always provides this shared framework at runtime.
