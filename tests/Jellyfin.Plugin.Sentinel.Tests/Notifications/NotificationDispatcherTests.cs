@@ -50,6 +50,26 @@ public class NotificationDispatcherTests
     }
 
     [Fact]
+    public async Task DispatchMessageAsync_DoesNotThrow_WhenPluginInstanceIsNull()
+    {
+        // Mirrors DispatchAsync_DoesNotThrow_WhenPluginInstanceIsNull above: Plugin.Instance is
+        // null in a test process, so this exercises DispatchMessageAsync's config-is-null
+        // early-return/no-op path.
+        var dispatcher = CreateDispatcher();
+        var message = new NotificationMessage
+        {
+            Title = "Sentinel: 1 plugin update(s) available",
+            Body = "Some Plugin v1.2.3",
+            Severity = "low",
+            IncidentUrl = string.Empty
+        };
+
+        var exception = await Record.ExceptionAsync(() => dispatcher.DispatchMessageAsync(message, CancellationToken.None));
+
+        Assert.Null(exception);
+    }
+
+    [Fact]
     public async Task SendTestNotificationAsync_ReturnsFalse_WhenPluginInstanceIsNull()
     {
         var dispatcher = CreateDispatcher();

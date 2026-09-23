@@ -81,15 +81,7 @@ public sealed partial class NotificationDispatcher
                 IncidentUrl = string.Empty
             };
 
-            foreach (var (channel, minSeverity) in BuildEnabledChannels(config))
-            {
-                if (!NotificationSeverityMapper.MeetsThreshold(severity, minSeverity))
-                {
-                    continue;
-                }
-
-                await channel.SendAsync(message, cancellationToken).ConfigureAwait(false);
-            }
+            await SendToEnabledChannelsAsync(message, config, cancellationToken).ConfigureAwait(false);
         }
 #pragma warning disable CA1031
         catch (Exception ex)
@@ -97,6 +89,49 @@ public sealed partial class NotificationDispatcher
             LogDispatchFailed(_logger, ex);
         }
 #pragma warning restore CA1031
+    }
+
+    /// <summary>
+    /// Sends an already-built <see cref="NotificationMessage"/> to every enabled, severity-eligible
+    /// channel — the shared fan-out logic behind both <see cref="DispatchAsync"/> (diagnosis-derived
+    /// messages) and any other caller building its own message (e.g. plugin-update notifications).
+    /// Never throws.
+    /// </summary>
+    /// <param name="message">The message to send.</param>
+    /// <param name="cancellationToken">Used to cancel the dispatch.</param>
+    public async Task DispatchMessageAsync(NotificationMessage message, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+
+        try
+        {
+            var config = Plugin.Instance?.Configuration;
+            if (config is null)
+            {
+                return;
+            }
+
+            await SendToEnabledChannelsAsync(message, config, cancellationToken).ConfigureAwait(false);
+        }
+#pragma warning disable CA1031
+        catch (Exception ex)
+        {
+            LogDispatchFailed(_logger, ex);
+        }
+#pragma warning restore CA1031
+    }
+
+    private async Task SendToEnabledChannelsAsync(NotificationMessage message, PluginConfiguration config, CancellationToken cancellationToken)
+    {
+        foreach (var (channel, minSeverity) in BuildEnabledChannels(config))
+        {
+            if (!NotificationSeverityMapper.MeetsThreshold(message.Severity, minSeverity))
+            {
+                continue;
+            }
+
+            await channel.SendAsync(message, cancellationToken).ConfigureAwait(false);
+        }
     }
 
     /// <summary>

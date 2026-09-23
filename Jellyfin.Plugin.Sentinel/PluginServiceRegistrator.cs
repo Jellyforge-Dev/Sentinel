@@ -61,9 +61,11 @@ public sealed partial class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<LocalizationService>();
         serviceCollection.AddSingleton<DiagnosisRepository>();
         serviceCollection.AddSingleton<IncidentRepository>();
+        serviceCollection.AddSingleton<NotifiedPluginUpdateRepository>();
         serviceCollection.AddSingleton(new RuleEngine(AllDiagnosticRules.All));
         serviceCollection.AddSingleton(TimeProvider.System);
         serviceCollection.AddHostedService<PlaybackCollectorHostedService>();
+        serviceCollection.AddHostedService<PluginUpdateMonitorHostedService>();
 
         serviceCollection.AddHttpClient("Sentinel.Notifications", client =>
         {
