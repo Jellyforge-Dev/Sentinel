@@ -64,7 +64,15 @@ public sealed partial class EmailNotificationChannel : INotificationChannel
             using var mimeMessage = BuildMimeMessage(message, _fromAddress, _toAddress);
 
             using var client = new SmtpClient();
-            await client.ConnectAsync(_smtpHost, _smtpPort, SecureSocketOptions.Auto, cancellationToken).ConfigureAwait(false);
+
+            // Deliberately not SecureSocketOptions.Auto: Auto silently falls back to an
+            // unencrypted connection if the server doesn't advertise STARTTLS (or a
+            // man-in-the-middle strips the advertisement), which would then submit the SMTP
+            // credentials below in cleartext. StartTls/SslOnConnect both fail the connection
+            // outright instead of downgrading, so a misconfigured or hostile server can never
+            // silently capture credentials this channel sends.
+            var secureSocketOptions = _smtpPort == 465 ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.StartTls;
+            await client.ConnectAsync(_smtpHost, _smtpPort, secureSocketOptions, cancellationToken).ConfigureAwait(false);
 
             if (!string.IsNullOrEmpty(_smtpUsername))
             {
