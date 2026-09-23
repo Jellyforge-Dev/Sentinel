@@ -14,4 +14,14 @@ public class PluginConfiguration : BasePluginConfiguration
     /// <see cref="SupportedLanguage"/>'s remarks.
     /// </summary>
     public SupportedLanguage Language { get; set; } = SupportedLanguage.En;
+
+    /// <summary>
+    /// Gets or sets the Telegram bot token used to send notifications, if Telegram notifications are enabled.
+    /// </summary>
+    public string TelegramBotToken { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the Telegram chat ID notifications are sent to, if Telegram notifications are enabled.
+    /// </summary>
+    public string TelegramChatId { get; set; } = string.Empty;
 }
