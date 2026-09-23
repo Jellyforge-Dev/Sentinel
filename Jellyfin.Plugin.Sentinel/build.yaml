@@ -1,7 +1,7 @@
 ---
 name: "Sentinel"
 guid: "4b5e3a79-7798-4066-841e-db7eb0125dc9"
-version: "0.1.5.1"
+version: "0.1.5.2"
 targetAbi: "12.1.0.0"
 framework: "net10.0"
 overview: "Evidence-based root-cause diagnosis for Jellyfin playback problems"
@@ -72,6 +72,27 @@ artifacts:
 - "runtimes/osx-x64/native/libe_sqlite3.dylib"
 - "runtimes/osx-arm64/native/libe_sqlite3.dylib"
 changelog: >
+  0.1.5.2: Adds Notification Delivery — Webhook, Discord, Telegram, and Email (via MailKit)
+  channels, a severity mapping (diagnosis confidence to low/medium/high), and a dedup-aware
+  dispatcher that notifies exactly once per new-or-reopened Incident (never per raw diagnosis or
+  per plain occurrence-count increment). Dashboard gains a per-channel config section (enable,
+  destination/credential fields, minimum-severity threshold, and a mandatory "Send test" button
+  per channel). Also adds: tracking and display of which Jellyfin user hit each diagnosis/incident
+  (never part of the Incident dedup fingerprint, to avoid fragmenting incidents on shared
+  household devices/profiles); Sentinel's own entry in the server admin sidebar under Plugins; an
+  incident filter/count tab bar (All/Active/Acknowledged/Resolved) and a small visual polish pass
+  on the dashboard. One security-relevant fix applied before release: the Email channel initially
+  used SecureSocketOptions.Auto, which can silently fall back to an unencrypted SMTP connection if
+  the server doesn't advertise STARTTLS — changed to StartTls/SslOnConnect, which fail the
+  connection outright instead of downgrading, so SMTP credentials can never be sent in cleartext.
+  Notification Delivery is NOT yet wired to the plugin-update/restart-pending feature (still
+  planned, not in this release) and has not been verified against real Discord/Telegram/Email/
+  webhook endpoints — that needs the admin's own credentials and is tracked as a post-release
+  verification step. Verified by a fresh-subagent review after every task (spec compliance + code
+  quality, including independent re-runs of the full test suite, independent re-derivation of
+  MailKit's exact publish-output dependency list, and independent verification of the TLS-downgrade
+  fix); one real, non-blocking test-coverage gap (the dispatcher's channel-wiring logic) found by a
+  task reviewer was fixed before this release, not left open.
   0.1.5.1: Adds full localization (English, German, Spanish, French, Swedish, Danish, Polish) —
   a per-plugin Language setting, and every diagnosis explanation/recommendation plus every
   dashboard UI string is now translated at serve time via a new GET Sentinel/ui-strings endpoint.
