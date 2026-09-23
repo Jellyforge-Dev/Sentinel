@@ -1,7 +1,7 @@
 ---
 name: "Sentinel"
 guid: "4b5e3a79-7798-4066-841e-db7eb0125dc9"
-version: "0.1.5.3"
+version: "0.1.6.0"
 targetAbi: "12.1.0.0"
 framework: "net10.0"
 overview: "Evidence-based root-cause diagnosis for Jellyfin playback problems"
@@ -72,6 +72,26 @@ artifacts:
 - "runtimes/osx-x64/native/libe_sqlite3.dylib"
 - "runtimes/osx-arm64/native/libe_sqlite3.dylib"
 changelog: >
+  0.1.6.0: Adds plugin-update and restart-pending notifications — a new, user-requested feature
+  not in the original master plan. Sentinel now checks hourly for available plugin updates (any
+  installed plugin, not just itself) and notifies once per distinct plugin+version, deduplicated
+  via a new NotifiedPluginUpdate table so the same update is never re-announced. Separately
+  watches for a pending server restart and notifies exactly once on the transition into that
+  state (never re-fires while already pending). These are deliberately two distinct notifications
+  — an available update does not by itself imply a pending restart — verified against real
+  Jellyfin v12.1 source (IInstallationManager.GetAvailablePluginUpdates,
+  IApplicationHost.HasPendingRestartChanged) rather than assumed. Also: a holistic security review
+  across the full plugin source (not just individual task diffs) found zero Critical/High/Medium/
+  Low findings — SQL injection, credential handling, dashboard XSS, and controller authorization
+  were all confirmed clean; one Informational note (outbound webhook/SMTP destinations have no
+  private-IP-range validation) was reviewed and judged a deliberately accepted non-issue given
+  this plugin's real threat model (the configuring admin already has full server/file access).
+  This release marks completion of the originally-requested MVP scope (localization, Incident
+  Engine, Notification Delivery, modern dashboard) plus every explicitly-requested addition
+  (Series-Episode display, per-incident user tracking, admin sidebar entry, and this
+  plugin-update/restart feature). See the project's own final report for the full changelog
+  across every release in this pass, an explicit list of anything that only works under specific
+  conditions/dependencies, and the live-server verification checklist.
   0.1.5.3: Real dashboard visual overhaul, in direct response to live-server feedback that the
   previous release's UI "still doesn't look good". The Notification Channels settings section
   (added in 0.1.5.2) was completely unstyled — a long list of plain stacked form fields sitting
