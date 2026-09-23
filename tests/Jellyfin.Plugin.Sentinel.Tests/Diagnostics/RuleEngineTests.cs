@@ -16,6 +16,7 @@ public class RuleEngineTests
         ItemId = "i1",
         Client = "Fire TV",
         DeviceName = "Living Room",
+        UserName = "Alice",
         PlayMethod = playMethod,
         TranscodeReasons = reasons,
         CreatedAtUtc = DateTime.UtcNow

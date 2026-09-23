@@ -46,5 +46,10 @@
   "UI_STATUS_RESOLVED": "Løst",
   "UI_STATUS_REOPENED": "Genåbnet",
   "UI_NO_INCIDENTS": "Ingen hændelser endnu — Sentinel registrerer kun en hændelse, når en session faktisk blev transkodet af en grund, de nuværende regler genkender.",
-  "UI_LOAD_INCIDENTS_FAILED": "Hændelser kunne ikke indlæses. Se Jellyfins serverlog for detaljer."
+  "UI_LOAD_INCIDENTS_FAILED": "Hændelser kunne ikke indlæses. Se Jellyfins serverlog for detaljer.",
+  "UI_COL_USER": "Bruger",
+  "UI_STATS_TOTAL": "I alt",
+  "UI_STATS_ACTIVE": "Aktive",
+  "UI_FILTER_ALL": "Alle",
+  "UI_NO_INCIDENTS_FOR_FILTER": "Ingen hændelser matcher dette filter."
 }

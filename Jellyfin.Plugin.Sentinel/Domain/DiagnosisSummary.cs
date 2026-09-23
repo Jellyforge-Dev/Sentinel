@@ -61,6 +61,11 @@ public sealed class DiagnosisSummary
     public required string DeviceName { get; init; }
 
     /// <summary>
+    /// Gets the Jellyfin username for the originating session, if one was reported.
+    /// </summary>
+    public required string UserName { get; init; }
+
+    /// <summary>
     /// Gets the play method Jellyfin used for the originating session.
     /// </summary>
     public required string PlayMethod { get; init; }

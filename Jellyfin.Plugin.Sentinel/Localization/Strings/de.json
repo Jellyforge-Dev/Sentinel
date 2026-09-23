@@ -46,5 +46,10 @@
   "UI_STATUS_RESOLVED": "Behoben",
   "UI_STATUS_REOPENED": "Erneut aufgetreten",
   "UI_NO_INCIDENTS": "Noch keine Vorfälle — Sentinel erfasst einen Vorfall nur, wenn eine Sitzung tatsächlich aus einem von den aktuellen Regeln erkannten Grund transkodiert wurde.",
-  "UI_LOAD_INCIDENTS_FAILED": "Vorfälle konnten nicht geladen werden. Details siehe Jellyfin-Serverprotokoll."
+  "UI_LOAD_INCIDENTS_FAILED": "Vorfälle konnten nicht geladen werden. Details siehe Jellyfin-Serverprotokoll.",
+  "UI_COL_USER": "Benutzer",
+  "UI_STATS_TOTAL": "Gesamt",
+  "UI_STATS_ACTIVE": "Aktiv",
+  "UI_FILTER_ALL": "Alle",
+  "UI_NO_INCIDENTS_FOR_FILTER": "Keine Vorfälle entsprechen diesem Filter."
 }

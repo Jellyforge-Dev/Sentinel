@@ -46,5 +46,10 @@
   "UI_STATUS_RESOLVED": "Rozwiązano",
   "UI_STATUS_REOPENED": "Ponownie otwarto",
   "UI_NO_INCIDENTS": "Brak incydentów — Sentinel rejestruje incydent tylko wtedy, gdy sesja rzeczywiście została transkodowana z powodu rozpoznawanego przez aktualne reguły.",
-  "UI_LOAD_INCIDENTS_FAILED": "Nie udało się załadować incydentów. Sprawdź dziennik serwera Jellyfin, aby uzyskać szczegóły."
+  "UI_LOAD_INCIDENTS_FAILED": "Nie udało się załadować incydentów. Sprawdź dziennik serwera Jellyfin, aby uzyskać szczegóły.",
+  "UI_COL_USER": "Użytkownik",
+  "UI_STATS_TOTAL": "Łącznie",
+  "UI_STATS_ACTIVE": "Aktywne",
+  "UI_FILTER_ALL": "Wszystkie",
+  "UI_NO_INCIDENTS_FOR_FILTER": "Żaden incydent nie pasuje do tego filtra."
 }

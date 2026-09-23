@@ -72,6 +72,7 @@ public class SentinelController : ControllerBase
                 summary.CreatedAtUtc,
                 summary.Client,
                 summary.DeviceName,
+                summary.UserName,
                 summary.PlayMethod,
                 MediaName = ResolveMediaName(summary.ItemId),
                 KnownIssueUrl = knownIssue?.IssueUrl,
@@ -112,6 +113,7 @@ public class SentinelController : ControllerBase
                 incident.ResolvedAtUtc,
                 incident.Client,
                 incident.DeviceName,
+                incident.UserName,
                 MediaName = ResolveMediaName(incident.ItemId),
                 Explanation = diagnosis?.Explanation,
                 Recommendation = diagnosis?.Recommendation,
@@ -168,7 +170,8 @@ public class SentinelController : ControllerBase
             "UI_COL_STATUS", "UI_COL_OCCURRENCES", "UI_COL_FIRST_SEEN", "UI_COL_LAST_SEEN",
             "UI_ACKNOWLEDGE_BUTTON", "UI_RESOLVE_BUTTON",
             "UI_STATUS_DETECTED", "UI_STATUS_ACKNOWLEDGED", "UI_STATUS_RESOLVED", "UI_STATUS_REOPENED",
-            "UI_NO_INCIDENTS", "UI_LOAD_INCIDENTS_FAILED"
+            "UI_NO_INCIDENTS", "UI_LOAD_INCIDENTS_FAILED",
+            "UI_COL_USER", "UI_STATS_TOTAL", "UI_STATS_ACTIVE", "UI_FILTER_ALL", "UI_NO_INCIDENTS_FOR_FILTER"
         };
 
         var result = keys.ToDictionary(key => key, key => _localizationService.Translate(key, language));

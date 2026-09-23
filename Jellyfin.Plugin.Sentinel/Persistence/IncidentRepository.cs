@@ -34,8 +34,9 @@ public sealed class IncidentRepository
     /// <param name="itemId">The media item's ID.</param>
     /// <param name="client">The Jellyfin client name.</param>
     /// <param name="deviceName">The device name.</param>
+    /// <param name="userName">The Jellyfin username most recently affected — not part of the fingerprint, but written on every branch so <see cref="Incident.UserName"/> always reflects the most recent occurrence, matching <see cref="Incident.LastSeenUtc"/>'s semantics.</param>
     /// <returns>The ID of the incident that was created, incremented, or reopened.</returns>
-    public long UpsertOnDiagnosis(long diagnosisId, string code, string itemId, string client, string deviceName)
+    public long UpsertOnDiagnosis(long diagnosisId, string code, string itemId, string client, string deviceName, string userName)
     {
         using var connection = _database.OpenConnection();
         using var transaction = connection.BeginTransaction();
@@ -74,15 +75,16 @@ public sealed class IncidentRepository
                 updateCommand.CommandText = existingStatus == nameof(IncidentStatus.Resolved)
                     ? """
                       UPDATE Incident
-                      SET Status = $reopened, OccurrenceCount = OccurrenceCount + 1, LastSeenUtc = $now, ResolvedAtUtc = NULL
+                      SET Status = $reopened, OccurrenceCount = OccurrenceCount + 1, LastSeenUtc = $now, UserName = $userName, ResolvedAtUtc = NULL
                       WHERE Id = $id;
                       """
                     : """
-                      UPDATE Incident SET OccurrenceCount = OccurrenceCount + 1, LastSeenUtc = $now WHERE Id = $id;
+                      UPDATE Incident SET OccurrenceCount = OccurrenceCount + 1, LastSeenUtc = $now, UserName = $userName WHERE Id = $id;
                       """;
 #pragma warning restore CA2100
                 updateCommand.Parameters.AddWithValue("$id", incidentId);
                 updateCommand.Parameters.AddWithValue("$now", now);
+                updateCommand.Parameters.AddWithValue("$userName", userName);
                 if (existingStatus == nameof(IncidentStatus.Resolved))
                 {
                     updateCommand.Parameters.AddWithValue("$reopened", nameof(IncidentStatus.Reopened));
@@ -97,14 +99,15 @@ public sealed class IncidentRepository
                 insertCommand.Transaction = transaction;
                 insertCommand.CommandText =
                     """
-                    INSERT INTO Incident (Code, ItemId, Client, DeviceName, Status, OccurrenceCount, FirstSeenUtc, LastSeenUtc)
-                    VALUES ($code, $itemId, $client, $deviceName, $detected, 1, $now, $now);
+                    INSERT INTO Incident (Code, ItemId, Client, DeviceName, UserName, Status, OccurrenceCount, FirstSeenUtc, LastSeenUtc)
+                    VALUES ($code, $itemId, $client, $deviceName, $userName, $detected, 1, $now, $now);
                     SELECT last_insert_rowid();
                     """;
                 insertCommand.Parameters.AddWithValue("$code", code);
                 insertCommand.Parameters.AddWithValue("$itemId", itemId);
                 insertCommand.Parameters.AddWithValue("$client", client);
                 insertCommand.Parameters.AddWithValue("$deviceName", deviceName);
+                insertCommand.Parameters.AddWithValue("$userName", userName);
                 insertCommand.Parameters.AddWithValue("$detected", nameof(IncidentStatus.Detected));
                 insertCommand.Parameters.AddWithValue("$now", now);
                 incidentId = (long)insertCommand.ExecuteScalar()!;
@@ -138,7 +141,7 @@ public sealed class IncidentRepository
         using var command = connection.CreateCommand();
         command.CommandText =
             """
-            SELECT Id, Code, ItemId, Client, DeviceName, Status, OccurrenceCount,
+            SELECT Id, Code, ItemId, Client, DeviceName, UserName, Status, OccurrenceCount,
                    FirstSeenUtc, LastSeenUtc, AcknowledgedAtUtc, ResolvedAtUtc
             FROM Incident
             ORDER BY LastSeenUtc DESC, Id DESC
@@ -157,12 +160,13 @@ public sealed class IncidentRepository
                 ItemId = reader.GetString(2),
                 Client = reader.GetString(3),
                 DeviceName = reader.GetString(4),
-                Status = Enum.Parse<IncidentStatus>(reader.GetString(5)),
-                OccurrenceCount = reader.GetInt32(6),
-                FirstSeenUtc = DateTime.Parse(reader.GetString(7), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
-                LastSeenUtc = DateTime.Parse(reader.GetString(8), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
-                AcknowledgedAtUtc = reader.IsDBNull(9) ? null : DateTime.Parse(reader.GetString(9), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
-                ResolvedAtUtc = reader.IsDBNull(10) ? null : DateTime.Parse(reader.GetString(10), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind)
+                UserName = reader.GetString(5),
+                Status = Enum.Parse<IncidentStatus>(reader.GetString(6)),
+                OccurrenceCount = reader.GetInt32(7),
+                FirstSeenUtc = DateTime.Parse(reader.GetString(8), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
+                LastSeenUtc = DateTime.Parse(reader.GetString(9), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
+                AcknowledgedAtUtc = reader.IsDBNull(10) ? null : DateTime.Parse(reader.GetString(10), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
+                ResolvedAtUtc = reader.IsDBNull(11) ? null : DateTime.Parse(reader.GetString(11), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind)
             });
         }
 

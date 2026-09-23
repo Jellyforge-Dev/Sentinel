@@ -103,7 +103,7 @@ public sealed partial class DiagnosisRepository
         command.CommandText =
             """
             SELECT d.Id, d.Code, d.Confidence, d.EvidenceJson, d.CreatedAtUtc,
-                   p.ItemId, p.Client, p.DeviceName, p.PlayMethod
+                   p.ItemId, p.Client, p.DeviceName, p.UserName, p.PlayMethod
             FROM Diagnosis d
             JOIN PlaybackEvent p ON p.Id = d.PlaybackEventId
             ORDER BY d.CreatedAtUtc DESC, d.Id DESC
@@ -136,7 +136,8 @@ public sealed partial class DiagnosisRepository
                     ItemId = reader.GetString(5),
                     Client = reader.GetString(6),
                     DeviceName = reader.GetString(7),
-                    PlayMethod = reader.GetString(8)
+                    UserName = reader.GetString(8),
+                    PlayMethod = reader.GetString(9)
                 });
             }
             catch (Exception ex) when (ex is ArgumentException or JsonException or FormatException or OverflowException)
@@ -161,7 +162,7 @@ public sealed partial class DiagnosisRepository
         command.CommandText =
             """
             SELECT d.Id, d.Code, d.Confidence, d.EvidenceJson, d.CreatedAtUtc,
-                   p.ItemId, p.Client, p.DeviceName, p.PlayMethod
+                   p.ItemId, p.Client, p.DeviceName, p.UserName, p.PlayMethod
             FROM Diagnosis d
             JOIN PlaybackEvent p ON p.Id = d.PlaybackEventId
             WHERE d.Id = $id;
@@ -191,7 +192,8 @@ public sealed partial class DiagnosisRepository
                 ItemId = reader.GetString(5),
                 Client = reader.GetString(6),
                 DeviceName = reader.GetString(7),
-                PlayMethod = reader.GetString(8)
+                UserName = reader.GetString(8),
+                PlayMethod = reader.GetString(9)
             };
         }
         catch (Exception ex) when (ex is ArgumentException or JsonException or FormatException or OverflowException)

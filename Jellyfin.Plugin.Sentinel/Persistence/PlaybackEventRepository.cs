@@ -35,15 +35,16 @@ public sealed class PlaybackEventRepository
         command.CommandText =
             """
             INSERT INTO PlaybackEvent
-                (SessionId, ItemId, Client, DeviceName, PlayMethod, TranscodeReasons, VideoCodec, AudioCodec, SubtitleFormat, CreatedAtUtc)
+                (SessionId, ItemId, Client, DeviceName, UserName, PlayMethod, TranscodeReasons, VideoCodec, AudioCodec, SubtitleFormat, CreatedAtUtc)
             VALUES
-                ($sessionId, $itemId, $client, $deviceName, $playMethod, $transcodeReasons, $videoCodec, $audioCodec, $subtitleFormat, $createdAtUtc);
+                ($sessionId, $itemId, $client, $deviceName, $userName, $playMethod, $transcodeReasons, $videoCodec, $audioCodec, $subtitleFormat, $createdAtUtc);
             SELECT last_insert_rowid();
             """;
         command.Parameters.AddWithValue("$sessionId", playbackEvent.SessionId);
         command.Parameters.AddWithValue("$itemId", playbackEvent.ItemId);
         command.Parameters.AddWithValue("$client", playbackEvent.Client);
         command.Parameters.AddWithValue("$deviceName", playbackEvent.DeviceName);
+        command.Parameters.AddWithValue("$userName", playbackEvent.UserName);
         command.Parameters.AddWithValue("$playMethod", playbackEvent.PlayMethod?.ToString() ?? string.Empty);
         command.Parameters.AddWithValue("$transcodeReasons", (long)playbackEvent.TranscodeReasons);
         command.Parameters.AddWithValue("$videoCodec", (object?)playbackEvent.VideoCodec ?? System.DBNull.Value);
