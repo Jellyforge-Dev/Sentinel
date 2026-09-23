@@ -103,6 +103,13 @@ public sealed class SentinelDatabase
                 FOREIGN KEY (IncidentId) REFERENCES Incident(Id),
                 FOREIGN KEY (DiagnosisId) REFERENCES Diagnosis(Id)
             );
+
+            CREATE TABLE IF NOT EXISTS NotifiedPluginUpdate (
+                PluginId TEXT NOT NULL,
+                Version TEXT NOT NULL,
+                NotifiedAtUtc TEXT NOT NULL,
+                PRIMARY KEY (PluginId, Version)
+            );
             """;
         command.ExecuteNonQuery();
 
