@@ -145,7 +145,15 @@ public sealed partial class NotificationDispatcher
         return body;
     }
 
-    private IEnumerable<(INotificationChannel Channel, string MinSeverity)> BuildEnabledChannels(PluginConfiguration config)
+    /// <summary>
+    /// Builds every enabled channel paired with its configured minimum severity, reading directly
+    /// from a supplied <see cref="PluginConfiguration"/> rather than <see cref="Plugin.Instance"/>.
+    /// Internal (not private) specifically so tests can exercise the enable-flag/min-severity
+    /// wiring directly — e.g. that <c>DiscordEnabled</c> pairs with <c>DiscordMinSeverity</c> and
+    /// never with another channel's threshold — without needing a live <see cref="Plugin.Instance"/>,
+    /// which is always null in a test process.
+    /// </summary>
+    internal IEnumerable<(INotificationChannel Channel, string MinSeverity)> BuildEnabledChannels(PluginConfiguration config)
     {
         if (config.WebhookEnabled)
         {
@@ -184,7 +192,12 @@ public sealed partial class NotificationDispatcher
         }
     }
 
-    private INotificationChannel? BuildChannelByName(string channelName, PluginConfiguration config) => channelName switch
+    /// <summary>
+    /// Constructs the named channel from a supplied <see cref="PluginConfiguration"/>, or null if
+    /// that channel's required fields aren't populated. Internal so tests can verify each channel
+    /// name maps to the correct config fields directly.
+    /// </summary>
+    internal INotificationChannel? BuildChannelByName(string channelName, PluginConfiguration config) => channelName switch
     {
         "webhook" when Uri.TryCreate(config.WebhookUrl, UriKind.Absolute, out var webhookUri) =>
             new WebhookNotificationChannel(_httpClientFactory, webhookUri, _loggerFactory.CreateLogger<WebhookNotificationChannel>()),
