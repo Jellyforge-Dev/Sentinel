@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.Sentinel.Diagnostics;
 using Jellyfin.Plugin.Sentinel.Domain;
+using Jellyfin.Plugin.Sentinel.Notifications;
 using Jellyfin.Plugin.Sentinel.Persistence;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Session;
@@ -66,6 +67,7 @@ public sealed partial class PlaybackCollectorHostedService : IHostedService
     private readonly PlaybackEventRepository _playbackEventRepository;
     private readonly DiagnosisRepository _diagnosisRepository;
     private readonly IncidentRepository _incidentRepository;
+    private readonly NotificationDispatcher _notificationDispatcher;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<PlaybackCollectorHostedService> _logger;
     private readonly ConcurrentDictionary<string, PlaybackProgressSnapshot> _lastKnownPlaybackState = new();
@@ -85,6 +87,7 @@ public sealed partial class PlaybackCollectorHostedService : IHostedService
     /// <param name="playbackEventRepository">The repository used to persist playback events.</param>
     /// <param name="diagnosisRepository">The repository used to persist diagnoses.</param>
     /// <param name="incidentRepository">The repository used to track incidents derived from diagnoses.</param>
+    /// <param name="notificationDispatcher">Used to send a notification for a new-or-reopened incident.</param>
     /// <param name="timeProvider">The time provider used for the snapshot-cache TTL sweep.</param>
     /// <param name="logger">The logger.</param>
     /// <exception cref="ArgumentNullException">Thrown when any parameter is null.</exception>
@@ -94,6 +97,7 @@ public sealed partial class PlaybackCollectorHostedService : IHostedService
         PlaybackEventRepository playbackEventRepository,
         DiagnosisRepository diagnosisRepository,
         IncidentRepository incidentRepository,
+        NotificationDispatcher notificationDispatcher,
         TimeProvider timeProvider,
         ILogger<PlaybackCollectorHostedService> logger)
     {
@@ -102,6 +106,7 @@ public sealed partial class PlaybackCollectorHostedService : IHostedService
         ArgumentNullException.ThrowIfNull(playbackEventRepository);
         ArgumentNullException.ThrowIfNull(diagnosisRepository);
         ArgumentNullException.ThrowIfNull(incidentRepository);
+        ArgumentNullException.ThrowIfNull(notificationDispatcher);
         ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentNullException.ThrowIfNull(logger);
 
@@ -110,6 +115,7 @@ public sealed partial class PlaybackCollectorHostedService : IHostedService
         _playbackEventRepository = playbackEventRepository;
         _diagnosisRepository = diagnosisRepository;
         _incidentRepository = incidentRepository;
+        _notificationDispatcher = notificationDispatcher;
         _timeProvider = timeProvider;
         _logger = logger;
     }
@@ -240,7 +246,12 @@ public sealed partial class PlaybackCollectorHostedService : IHostedService
             foreach (var diagnosis in diagnoses)
             {
                 var diagnosisId = _diagnosisRepository.Insert(playbackEventId, diagnosis);
-                _incidentRepository.UpsertOnDiagnosis(diagnosisId, diagnosis.Code, playbackEvent.ItemId, playbackEvent.Client, playbackEvent.DeviceName, playbackEvent.UserName);
+                var upsertResult = _incidentRepository.UpsertOnDiagnosis(diagnosisId, diagnosis.Code, playbackEvent.ItemId, playbackEvent.Client, playbackEvent.DeviceName, playbackEvent.UserName);
+                if (upsertResult.IsNewOrReopened)
+                {
+                    _ = DispatchNotificationSafelyAsync(diagnosis, playbackEvent);
+                }
+
                 LogDiagnosis(_logger, diagnosis.Code, diagnosis.Confidence, playbackEvent.SessionId);
             }
         }
@@ -248,6 +259,20 @@ public sealed partial class PlaybackCollectorHostedService : IHostedService
         catch (Exception ex)
         {
             LogPlaybackStoppedHandlerFailed(_logger, ex);
+        }
+#pragma warning restore CA1031
+    }
+
+    private async Task DispatchNotificationSafelyAsync(Diagnosis diagnosis, PlaybackEvent playbackEvent)
+    {
+        try
+        {
+            await _notificationDispatcher.DispatchAsync(diagnosis, playbackEvent, CancellationToken.None).ConfigureAwait(false);
+        }
+#pragma warning disable CA1031
+        catch (Exception ex)
+        {
+            LogNotificationDispatchFailed(_logger, ex);
         }
 #pragma warning restore CA1031
     }
@@ -278,4 +303,7 @@ public sealed partial class PlaybackCollectorHostedService : IHostedService
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Sentinel failed to process a playback-progress event; Jellyfin's own playback handling was not affected")]
     private static partial void LogPlaybackProgressHandlerFailed(ILogger logger, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Sentinel: failed to dispatch a notification for a new or reopened incident")]
+    private static partial void LogNotificationDispatchFailed(ILogger logger, Exception exception);
 }

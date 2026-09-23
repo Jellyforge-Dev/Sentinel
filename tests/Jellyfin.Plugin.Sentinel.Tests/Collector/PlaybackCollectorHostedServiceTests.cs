@@ -1,11 +1,13 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.Sentinel.Collector;
 using Jellyfin.Plugin.Sentinel.Diagnostics;
 using Jellyfin.Plugin.Sentinel.Localization;
+using Jellyfin.Plugin.Sentinel.Notifications;
 using Jellyfin.Plugin.Sentinel.Persistence;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Library;
@@ -51,6 +53,11 @@ public class PlaybackCollectorHostedServiceTests : IDisposable
         var diagnosisRepository = new DiagnosisRepository(_database, new LocalizationService(), NullLogger<DiagnosisRepository>.Instance);
         var incidentRepository = new IncidentRepository(_database);
         var ruleEngine = new RuleEngine(CoreTranscodeRules.All);
+        var notificationDispatcher = new NotificationDispatcher(
+            new Mock<IHttpClientFactory>().Object,
+            NullLoggerFactory.Instance,
+            new LocalizationService(),
+            NullLogger<NotificationDispatcher>.Instance);
 
         return new PlaybackCollectorHostedService(
             sessionManagerMock.Object,
@@ -58,6 +65,7 @@ public class PlaybackCollectorHostedServiceTests : IDisposable
             playbackEventRepository,
             diagnosisRepository,
             incidentRepository,
+            notificationDispatcher,
             timeProvider ?? TimeProvider.System,
             NullLogger<PlaybackCollectorHostedService>.Instance);
     }
