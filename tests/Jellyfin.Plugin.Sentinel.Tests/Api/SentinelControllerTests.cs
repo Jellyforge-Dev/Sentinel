@@ -2,13 +2,18 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
+using System.Threading;
+using System.Threading.Tasks;
 using Jellyfin.Plugin.Sentinel.Api;
 using Jellyfin.Plugin.Sentinel.Domain;
 using Jellyfin.Plugin.Sentinel.Localization;
+using Jellyfin.Plugin.Sentinel.Notifications;
 using Jellyfin.Plugin.Sentinel.Persistence;
 using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Library;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -25,6 +30,7 @@ public class SentinelControllerTests : IDisposable
     private readonly DiagnosisRepository _diagnosisRepository;
     private readonly IncidentRepository _incidentRepository;
     private readonly LocalizationService _localizationService = new();
+    private readonly NotificationDispatcher _notificationDispatcher;
     private readonly SentinelController _controller;
 
     public SentinelControllerTests()
@@ -34,9 +40,14 @@ public class SentinelControllerTests : IDisposable
         _playbackEventRepository = new PlaybackEventRepository(_database);
         _diagnosisRepository = new DiagnosisRepository(_database, _localizationService, NullLogger<DiagnosisRepository>.Instance);
         _incidentRepository = new IncidentRepository(_database);
+        _notificationDispatcher = new NotificationDispatcher(
+            new Mock<IHttpClientFactory>().Object,
+            NullLoggerFactory.Instance,
+            _localizationService,
+            NullLogger<NotificationDispatcher>.Instance);
 
         var libraryManagerMock = new Mock<ILibraryManager>();
-        _controller = new SentinelController(_diagnosisRepository, libraryManagerMock.Object, _localizationService, _incidentRepository);
+        _controller = new SentinelController(_diagnosisRepository, libraryManagerMock.Object, _localizationService, _incidentRepository, _notificationDispatcher);
     }
 
     [Fact]
@@ -99,7 +110,7 @@ public class SentinelControllerTests : IDisposable
 
         var libraryManagerMock = new Mock<ILibraryManager>();
         libraryManagerMock.Setup(x => x.GetItemById(episodeId)).Returns(episode);
-        var controller = new SentinelController(_diagnosisRepository, libraryManagerMock.Object, _localizationService, _incidentRepository);
+        var controller = new SentinelController(_diagnosisRepository, libraryManagerMock.Object, _localizationService, _incidentRepository, _notificationDispatcher);
 
         var playbackEvent = new PlaybackEvent
         {
@@ -141,7 +152,7 @@ public class SentinelControllerTests : IDisposable
 
         var libraryManagerMock = new Mock<ILibraryManager>();
         libraryManagerMock.Setup(x => x.GetItemById(movieId)).Returns(movie);
-        var controller = new SentinelController(_diagnosisRepository, libraryManagerMock.Object, _localizationService, _incidentRepository);
+        var controller = new SentinelController(_diagnosisRepository, libraryManagerMock.Object, _localizationService, _incidentRepository, _notificationDispatcher);
 
         var playbackEvent = new PlaybackEvent
         {
@@ -237,7 +248,7 @@ public class SentinelControllerTests : IDisposable
             Evidence = new[] { "TranscodeReasons = VideoCodecNotSupported" }
         };
         var diagnosisId = _diagnosisRepository.Insert(playbackEventId, diagnosis);
-        var incidentId = _incidentRepository.UpsertOnDiagnosis(diagnosisId, diagnosis.Code, playbackEvent.ItemId, playbackEvent.Client, playbackEvent.DeviceName, playbackEvent.UserName);
+        var incidentId = _incidentRepository.UpsertOnDiagnosis(diagnosisId, diagnosis.Code, playbackEvent.ItemId, playbackEvent.Client, playbackEvent.DeviceName, playbackEvent.UserName).IncidentId;
 
         Assert.IsType<OkResult>(_controller.AcknowledgeIncident(incidentId));
 
@@ -272,7 +283,7 @@ public class SentinelControllerTests : IDisposable
             Evidence = new[] { "TranscodeReasons = VideoCodecNotSupported" }
         };
         var diagnosisId = _diagnosisRepository.Insert(playbackEventId, diagnosis);
-        var incidentId = _incidentRepository.UpsertOnDiagnosis(diagnosisId, diagnosis.Code, playbackEvent.ItemId, playbackEvent.Client, playbackEvent.DeviceName, playbackEvent.UserName);
+        var incidentId = _incidentRepository.UpsertOnDiagnosis(diagnosisId, diagnosis.Code, playbackEvent.ItemId, playbackEvent.Client, playbackEvent.DeviceName, playbackEvent.UserName).IncidentId;
 
         Assert.IsType<OkResult>(_controller.ResolveIncident(incidentId));
 
@@ -282,6 +293,18 @@ public class SentinelControllerTests : IDisposable
         Assert.Single(response);
         var status = response[0].GetType().GetProperty("Status")!.GetValue(response[0]);
         Assert.Equal("Resolved", status);
+    }
+
+    [Fact]
+    public async Task SendTestNotification_ReturnsBadGateway_ForAnUnconfiguredChannel()
+    {
+        // WebhookUrl is empty (Plugin.Instance is null in a test process, so the dispatcher's
+        // config lookup also returns null) — either way, "webhook" resolves to no channel, and
+        // the endpoint must surface that as 502 rather than throwing or returning 200.
+        var result = await _controller.SendTestNotification("webhook", CancellationToken.None);
+
+        var statusCodeResult = Assert.IsType<StatusCodeResult>(result);
+        Assert.Equal(StatusCodes.Status502BadGateway, statusCodeResult.StatusCode);
     }
 
     public void Dispose()

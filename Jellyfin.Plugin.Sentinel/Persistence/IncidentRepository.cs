@@ -6,6 +6,14 @@ using Jellyfin.Plugin.Sentinel.Domain;
 namespace Jellyfin.Plugin.Sentinel.Persistence;
 
 /// <summary>
+/// The outcome of <see cref="IncidentRepository.UpsertOnDiagnosis"/> — tells the caller whether
+/// this specific call is the one that should trigger a notification (a brand-new incident, or one
+/// that just reopened after being resolved) versus a plain occurrence-count increment on an
+/// already-known, already-notified incident.
+/// </summary>
+public readonly record struct IncidentUpsertResult(long IncidentId, bool IsNewOrReopened);
+
+/// <summary>
 /// Repository for the Incident Engine's dedup/lifecycle logic — groups <see cref="Diagnosis"/>
 /// rows sharing the same fingerprint (rule code, item, client, device) into a single tracked
 /// <see cref="Incident"/> rather than alerting once per raw diagnosis.
@@ -35,13 +43,14 @@ public sealed class IncidentRepository
     /// <param name="client">The Jellyfin client name.</param>
     /// <param name="deviceName">The device name.</param>
     /// <param name="userName">The Jellyfin username most recently affected — not part of the fingerprint, but written on every branch so <see cref="Incident.UserName"/> always reflects the most recent occurrence, matching <see cref="Incident.LastSeenUtc"/>'s semantics.</param>
-    /// <returns>The ID of the incident that was created, incremented, or reopened.</returns>
-    public long UpsertOnDiagnosis(long diagnosisId, string code, string itemId, string client, string deviceName, string userName)
+    /// <returns>The ID of the incident that was created, incremented, or reopened, and whether this call is the one that should trigger a notification.</returns>
+    public IncidentUpsertResult UpsertOnDiagnosis(long diagnosisId, string code, string itemId, string client, string deviceName, string userName)
     {
         using var connection = _database.OpenConnection();
         using var transaction = connection.BeginTransaction();
 
         long incidentId;
+        bool isNewOrReopened;
         var now = DateTime.UtcNow.ToString("O");
 
         using (var findCommand = connection.CreateCommand())
@@ -85,7 +94,8 @@ public sealed class IncidentRepository
                 updateCommand.Parameters.AddWithValue("$id", incidentId);
                 updateCommand.Parameters.AddWithValue("$now", now);
                 updateCommand.Parameters.AddWithValue("$userName", userName);
-                if (existingStatus == nameof(IncidentStatus.Resolved))
+                isNewOrReopened = existingStatus == nameof(IncidentStatus.Resolved);
+                if (isNewOrReopened)
                 {
                     updateCommand.Parameters.AddWithValue("$reopened", nameof(IncidentStatus.Reopened));
                 }
@@ -95,6 +105,7 @@ public sealed class IncidentRepository
             else
             {
                 reader.Close();
+                isNewOrReopened = true;
                 using var insertCommand = connection.CreateCommand();
                 insertCommand.Transaction = transaction;
                 insertCommand.CommandText =
@@ -124,7 +135,7 @@ public sealed class IncidentRepository
         }
 
         transaction.Commit();
-        return incidentId;
+        return new IncidentUpsertResult(incidentId, isNewOrReopened);
     }
 
     /// <summary>

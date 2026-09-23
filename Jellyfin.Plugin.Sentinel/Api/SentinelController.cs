@@ -1,8 +1,11 @@
 using System;
 using System.Linq;
 using System.Net.Mime;
+using System.Threading;
+using System.Threading.Tasks;
 using Jellyfin.Plugin.Sentinel.Diagnostics;
 using Jellyfin.Plugin.Sentinel.Localization;
+using Jellyfin.Plugin.Sentinel.Notifications;
 using Jellyfin.Plugin.Sentinel.Persistence;
 using MediaBrowser.Common.Api;
 using MediaBrowser.Controller.Library;
@@ -26,6 +29,7 @@ public class SentinelController : ControllerBase
     private readonly ILibraryManager _libraryManager;
     private readonly LocalizationService _localizationService;
     private readonly IncidentRepository _incidentRepository;
+    private readonly NotificationDispatcher _notificationDispatcher;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SentinelController"/> class.
@@ -34,16 +38,19 @@ public class SentinelController : ControllerBase
     /// <param name="libraryManager">Used to resolve a media item's display name from its id.</param>
     /// <param name="localizationService">Used to translate the dashboard's own UI strings.</param>
     /// <param name="incidentRepository">Repository for reading and updating Sentinel's tracked incidents.</param>
-    public SentinelController(DiagnosisRepository diagnosisRepository, ILibraryManager libraryManager, LocalizationService localizationService, IncidentRepository incidentRepository)
+    /// <param name="notificationDispatcher">Used to send a test notification through a named channel.</param>
+    public SentinelController(DiagnosisRepository diagnosisRepository, ILibraryManager libraryManager, LocalizationService localizationService, IncidentRepository incidentRepository, NotificationDispatcher notificationDispatcher)
     {
         ArgumentNullException.ThrowIfNull(diagnosisRepository);
         ArgumentNullException.ThrowIfNull(libraryManager);
         ArgumentNullException.ThrowIfNull(localizationService);
         ArgumentNullException.ThrowIfNull(incidentRepository);
+        ArgumentNullException.ThrowIfNull(notificationDispatcher);
         _diagnosisRepository = diagnosisRepository;
         _libraryManager = libraryManager;
         _localizationService = localizationService;
         _incidentRepository = incidentRepository;
+        _notificationDispatcher = notificationDispatcher;
     }
 
     /// <summary>
@@ -176,6 +183,21 @@ public class SentinelController : ControllerBase
 
         var result = keys.ToDictionary(key => key, key => _localizationService.Translate(key, language));
         return Ok(result);
+    }
+
+    /// <summary>
+    /// Sends a fixed test message through the named notification channel, for the dashboard's
+    /// per-channel "Send test" button.
+    /// </summary>
+    /// <param name="channelName">The channel to test (webhook/discord/telegram/email).</param>
+    /// <param name="cancellationToken">Used to cancel the send.</param>
+    [HttpPost("notifications/test/{channelName}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status502BadGateway)]
+    public async Task<ActionResult> SendTestNotification(string channelName, CancellationToken cancellationToken)
+    {
+        var success = await _notificationDispatcher.SendTestNotificationAsync(channelName, cancellationToken).ConfigureAwait(false);
+        return success ? Ok() : StatusCode(StatusCodes.Status502BadGateway);
     }
 
     /// <summary>

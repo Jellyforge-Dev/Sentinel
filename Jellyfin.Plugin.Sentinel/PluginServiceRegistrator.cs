@@ -3,6 +3,7 @@ using System.IO;
 using Jellyfin.Plugin.Sentinel.Collector;
 using Jellyfin.Plugin.Sentinel.Diagnostics;
 using Jellyfin.Plugin.Sentinel.Localization;
+using Jellyfin.Plugin.Sentinel.Notifications;
 using Jellyfin.Plugin.Sentinel.Persistence;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Plugins;
@@ -68,6 +69,11 @@ public sealed partial class PluginServiceRegistrator : IPluginServiceRegistrator
         {
             client.Timeout = TimeSpan.FromSeconds(10);
         });
+
+        // Safe as a singleton: it holds no per-request/per-connection state itself — each
+        // SendAsync/SendTestNotificationAsync call constructs its own short-lived channel
+        // instances from fresh config.
+        serviceCollection.AddSingleton<NotificationDispatcher>();
     }
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Sentinel: Plugin.Instance was null when resolving the database path — this indicates a plugin loading order problem.")]
