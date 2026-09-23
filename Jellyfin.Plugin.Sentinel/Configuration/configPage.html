@@ -4,7 +4,7 @@
     <title>Sentinel</title>
 </head>
 <body>
-    <div id="SentinelConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-select,emby-button">
+    <div id="SentinelConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-select,emby-checkbox">
         <div data-role="content">
             <div class="content-primary">
                 <h1 id="sentinelUiTitle">Jellyfin Sentinel</h1>
@@ -22,6 +22,123 @@
                             <option value="6">Polski</option>
                         </select>
                     </div>
+
+                    <div class="verticalSection">
+                        <h2>Notification Channels</h2>
+
+                        <div class="verticalSection-extrabottompadding">
+                            <h3>Webhook</h3>
+                            <label class="checkboxContainer">
+                                <input is="emby-checkbox" type="checkbox" id="WebhookEnabled" />
+                                <span>Enable</span>
+                            </label>
+                            <div class="inputContainer">
+                                <label class="inputLabel inputLabelUnfocused" for="WebhookUrl">Webhook URL</label>
+                                <input is="emby-input" type="text" id="WebhookUrl" />
+                            </div>
+                            <div class="selectContainer">
+                                <label class="selectLabel" for="WebhookMinSeverity">Minimum Severity</label>
+                                <select is="emby-select" id="WebhookMinSeverity" class="emby-select-withcolor emby-select">
+                                    <option value="low">Low</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="high">High</option>
+                                </select>
+                            </div>
+                            <button is="emby-button" type="button" class="raised sentinelTestButton" data-sentinel-test-channel="webhook">Send Test</button>
+                            <span class="sentinelTestResult" data-sentinel-test-result="webhook"></span>
+                        </div>
+
+                        <div class="verticalSection-extrabottompadding">
+                            <h3>Discord</h3>
+                            <label class="checkboxContainer">
+                                <input is="emby-checkbox" type="checkbox" id="DiscordEnabled" />
+                                <span>Enable</span>
+                            </label>
+                            <div class="inputContainer">
+                                <label class="inputLabel inputLabelUnfocused" for="DiscordWebhookUrl">Discord Webhook URL</label>
+                                <input is="emby-input" type="text" id="DiscordWebhookUrl" />
+                            </div>
+                            <div class="selectContainer">
+                                <label class="selectLabel" for="DiscordMinSeverity">Minimum Severity</label>
+                                <select is="emby-select" id="DiscordMinSeverity" class="emby-select-withcolor emby-select">
+                                    <option value="low">Low</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="high">High</option>
+                                </select>
+                            </div>
+                            <button is="emby-button" type="button" class="raised sentinelTestButton" data-sentinel-test-channel="discord">Send Test</button>
+                            <span class="sentinelTestResult" data-sentinel-test-result="discord"></span>
+                        </div>
+
+                        <div class="verticalSection-extrabottompadding">
+                            <h3>Telegram</h3>
+                            <label class="checkboxContainer">
+                                <input is="emby-checkbox" type="checkbox" id="TelegramEnabled" />
+                                <span>Enable</span>
+                            </label>
+                            <div class="inputContainer">
+                                <label class="inputLabel inputLabelUnfocused" for="TelegramBotToken">Bot Token</label>
+                                <input is="emby-input" type="text" id="TelegramBotToken" />
+                            </div>
+                            <div class="inputContainer">
+                                <label class="inputLabel inputLabelUnfocused" for="TelegramChatId">Chat ID</label>
+                                <input is="emby-input" type="text" id="TelegramChatId" />
+                            </div>
+                            <div class="selectContainer">
+                                <label class="selectLabel" for="TelegramMinSeverity">Minimum Severity</label>
+                                <select is="emby-select" id="TelegramMinSeverity" class="emby-select-withcolor emby-select">
+                                    <option value="low">Low</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="high">High</option>
+                                </select>
+                            </div>
+                            <button is="emby-button" type="button" class="raised sentinelTestButton" data-sentinel-test-channel="telegram">Send Test</button>
+                            <span class="sentinelTestResult" data-sentinel-test-result="telegram"></span>
+                        </div>
+
+                        <div class="verticalSection-extrabottompadding">
+                            <h3>Email</h3>
+                            <label class="checkboxContainer">
+                                <input is="emby-checkbox" type="checkbox" id="EmailEnabled" />
+                                <span>Enable</span>
+                            </label>
+                            <div class="inputContainer">
+                                <label class="inputLabel inputLabelUnfocused" for="EmailSmtpHost">SMTP Host</label>
+                                <input is="emby-input" type="text" id="EmailSmtpHost" />
+                            </div>
+                            <div class="inputContainer">
+                                <label class="inputLabel inputLabelUnfocused" for="EmailSmtpPort">SMTP Port</label>
+                                <input is="emby-input" type="number" id="EmailSmtpPort" />
+                            </div>
+                            <div class="inputContainer">
+                                <label class="inputLabel inputLabelUnfocused" for="EmailSmtpUsername">SMTP Username</label>
+                                <input is="emby-input" type="text" id="EmailSmtpUsername" />
+                            </div>
+                            <div class="inputContainer">
+                                <label class="inputLabel inputLabelUnfocused" for="EmailSmtpPassword">SMTP Password</label>
+                                <input is="emby-input" type="password" id="EmailSmtpPassword" />
+                            </div>
+                            <div class="inputContainer">
+                                <label class="inputLabel inputLabelUnfocused" for="EmailFromAddress">From Address</label>
+                                <input is="emby-input" type="text" id="EmailFromAddress" />
+                            </div>
+                            <div class="inputContainer">
+                                <label class="inputLabel inputLabelUnfocused" for="EmailToAddress">To Address</label>
+                                <input is="emby-input" type="text" id="EmailToAddress" />
+                            </div>
+                            <div class="selectContainer">
+                                <label class="selectLabel" for="EmailMinSeverity">Minimum Severity</label>
+                                <select is="emby-select" id="EmailMinSeverity" class="emby-select-withcolor emby-select">
+                                    <option value="low">Low</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="high">High</option>
+                                </select>
+                            </div>
+                            <button is="emby-button" type="button" class="raised sentinelTestButton" data-sentinel-test-channel="email">Send Test</button>
+                            <span class="sentinelTestResult" data-sentinel-test-result="email"></span>
+                        </div>
+                    </div>
+
                     <div>
                         <button is="emby-button" type="submit" class="raised button-submit block emby-button">
                             <span>Save</span>
@@ -188,6 +305,78 @@
 
                 function getUiString(key) {
                     return uiStrings[key] || uiStringsDefaults[key];
+                }
+
+                var NOTIFICATION_TEXT_FIELD_IDS = [
+                    'WebhookUrl', 'DiscordWebhookUrl',
+                    'TelegramBotToken', 'TelegramChatId',
+                    'EmailSmtpHost', 'EmailSmtpUsername', 'EmailSmtpPassword', 'EmailFromAddress', 'EmailToAddress',
+                    'WebhookMinSeverity', 'DiscordMinSeverity', 'TelegramMinSeverity', 'EmailMinSeverity'
+                ];
+                var NOTIFICATION_BOOLEAN_FIELD_IDS = ['WebhookEnabled', 'DiscordEnabled', 'TelegramEnabled', 'EmailEnabled'];
+                var NOTIFICATION_NUMBER_FIELD_IDS = ['EmailSmtpPort'];
+
+                function loadNotificationSettings(config) {
+                    NOTIFICATION_BOOLEAN_FIELD_IDS.forEach(function (fieldId) {
+                        var element = document.querySelector('#' + fieldId);
+                        if (element) {
+                            element.checked = !!config[fieldId];
+                        }
+                    });
+
+                    NOTIFICATION_TEXT_FIELD_IDS.concat(NOTIFICATION_NUMBER_FIELD_IDS).forEach(function (fieldId) {
+                        var element = document.querySelector('#' + fieldId);
+                        if (element) {
+                            element.value = config[fieldId] != null ? String(config[fieldId]) : '';
+                        }
+                    });
+                }
+
+                function applyNotificationSettings(config) {
+                    NOTIFICATION_BOOLEAN_FIELD_IDS.forEach(function (fieldId) {
+                        var element = document.querySelector('#' + fieldId);
+                        if (element) {
+                            config[fieldId] = element.checked;
+                        }
+                    });
+
+                    NOTIFICATION_TEXT_FIELD_IDS.forEach(function (fieldId) {
+                        var element = document.querySelector('#' + fieldId);
+                        if (element) {
+                            config[fieldId] = element.value;
+                        }
+                    });
+
+                    NOTIFICATION_NUMBER_FIELD_IDS.forEach(function (fieldId) {
+                        var element = document.querySelector('#' + fieldId);
+                        if (element) {
+                            config[fieldId] = parseInt(element.value, 10) || 0;
+                        }
+                    });
+                }
+
+                function wireTestSendButtons() {
+                    document.querySelectorAll('[data-sentinel-test-channel]').forEach(function (button) {
+                        button.addEventListener('click', function () {
+                            var channelName = button.getAttribute('data-sentinel-test-channel');
+                            var resultSpan = document.querySelector('[data-sentinel-test-result="' + channelName + '"]');
+
+                            if (resultSpan) {
+                                resultSpan.textContent = 'Sending…';
+                            }
+
+                            var url = ApiClient.getUrl('Sentinel/notifications/test/' + encodeURIComponent(channelName));
+                            ApiClient.ajax({ type: 'POST', url: url }).then(function () {
+                                if (resultSpan) {
+                                    resultSpan.textContent = 'Sent successfully.';
+                                }
+                            }).catch(function () {
+                                if (resultSpan) {
+                                    resultSpan.textContent = 'Failed to send — check the channel is fully configured and the destination is reachable.';
+                                }
+                            });
+                        });
+                    });
                 }
 
                 function escapeHtmlText(value) {
@@ -413,6 +602,7 @@
                     Dashboard.showLoadingMsg();
                     ApiClient.getPluginConfiguration(SentinelConfig.pluginUniqueId).then(function (config) {
                         document.querySelector('#SentinelLanguage').value = String(config.Language);
+                        loadNotificationSettings(config);
                         Dashboard.hideLoadingMsg();
                     });
                 }
@@ -421,12 +611,14 @@
                     loadUiStrings();
                     loadIncidents();
                     loadLanguageSetting();
+                    wireTestSendButtons();
                 });
 
                 document.querySelector('#SentinelConfigForm').addEventListener('submit', function (e) {
                     Dashboard.showLoadingMsg();
                     ApiClient.getPluginConfiguration(SentinelConfig.pluginUniqueId).then(function (config) {
                         config.Language = parseInt(document.querySelector('#SentinelLanguage').value, 10);
+                        applyNotificationSettings(config);
                         ApiClient.updatePluginConfiguration(SentinelConfig.pluginUniqueId, config).then(function (result) {
                             Dashboard.processPluginConfigurationUpdateResult(result);
                         });
