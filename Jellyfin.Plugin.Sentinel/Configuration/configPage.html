@@ -7,8 +7,10 @@
     <div id="SentinelConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-select,emby-checkbox">
         <div data-role="content">
             <div class="content-primary">
-                <h1 id="sentinelUiTitle">Jellyfin Sentinel</h1>
-                <p id="sentinelUiIntro">Incidents Sentinel has detected, grouped by media, client, and device. Click a card to see the evidence behind it.</p>
+                <div class="sentinelPageHeader">
+                    <h1 id="sentinelUiTitle">Jellyfin Sentinel</h1>
+                    <p id="sentinelUiIntro">Incidents Sentinel has detected, grouped by media, client, and device. Click a card to see the evidence behind it.</p>
+                </div>
                 <form id="SentinelConfigForm">
                     <div class="selectContainer">
                         <label class="selectLabel" for="SentinelLanguage">Language</label>
@@ -23,121 +25,132 @@
                         </select>
                     </div>
 
-                    <div class="verticalSection">
-                        <h2>Notification Channels</h2>
+                    <details class="sentinelSettingsDetails">
+                        <summary>Notification Channels</summary>
+                        <div class="sentinelSettingsBody">
+                            <div class="sentinelChannelGrid">
+                                <div class="sentinelChannelCard sentinelChannelWebhook">
+                                    <h3>Webhook</h3>
+                                    <label class="checkboxContainer">
+                                        <input is="emby-checkbox" type="checkbox" id="WebhookEnabled" />
+                                        <span>Enable</span>
+                                    </label>
+                                    <div class="inputContainer">
+                                        <label class="inputLabel inputLabelUnfocused" for="WebhookUrl">Webhook URL</label>
+                                        <input is="emby-input" type="text" id="WebhookUrl" />
+                                    </div>
+                                    <div class="selectContainer">
+                                        <label class="selectLabel" for="WebhookMinSeverity">Minimum Severity</label>
+                                        <select is="emby-select" id="WebhookMinSeverity" class="emby-select-withcolor emby-select">
+                                            <option value="low">Low</option>
+                                            <option value="medium">Medium</option>
+                                            <option value="high">High</option>
+                                        </select>
+                                    </div>
+                                    <div class="sentinelChannelFooter">
+                                        <button is="emby-button" type="button" class="raised sentinelTestButton" data-sentinel-test-channel="webhook">Send Test</button>
+                                        <span class="sentinelTestResult" data-sentinel-test-result="webhook"></span>
+                                    </div>
+                                </div>
 
-                        <div class="verticalSection-extrabottompadding">
-                            <h3>Webhook</h3>
-                            <label class="checkboxContainer">
-                                <input is="emby-checkbox" type="checkbox" id="WebhookEnabled" />
-                                <span>Enable</span>
-                            </label>
-                            <div class="inputContainer">
-                                <label class="inputLabel inputLabelUnfocused" for="WebhookUrl">Webhook URL</label>
-                                <input is="emby-input" type="text" id="WebhookUrl" />
-                            </div>
-                            <div class="selectContainer">
-                                <label class="selectLabel" for="WebhookMinSeverity">Minimum Severity</label>
-                                <select is="emby-select" id="WebhookMinSeverity" class="emby-select-withcolor emby-select">
-                                    <option value="low">Low</option>
-                                    <option value="medium">Medium</option>
-                                    <option value="high">High</option>
-                                </select>
-                            </div>
-                            <button is="emby-button" type="button" class="raised sentinelTestButton" data-sentinel-test-channel="webhook">Send Test</button>
-                            <span class="sentinelTestResult" data-sentinel-test-result="webhook"></span>
-                        </div>
+                                <div class="sentinelChannelCard sentinelChannelDiscord">
+                                    <h3>Discord</h3>
+                                    <label class="checkboxContainer">
+                                        <input is="emby-checkbox" type="checkbox" id="DiscordEnabled" />
+                                        <span>Enable</span>
+                                    </label>
+                                    <div class="inputContainer">
+                                        <label class="inputLabel inputLabelUnfocused" for="DiscordWebhookUrl">Discord Webhook URL</label>
+                                        <input is="emby-input" type="text" id="DiscordWebhookUrl" />
+                                    </div>
+                                    <div class="selectContainer">
+                                        <label class="selectLabel" for="DiscordMinSeverity">Minimum Severity</label>
+                                        <select is="emby-select" id="DiscordMinSeverity" class="emby-select-withcolor emby-select">
+                                            <option value="low">Low</option>
+                                            <option value="medium">Medium</option>
+                                            <option value="high">High</option>
+                                        </select>
+                                    </div>
+                                    <div class="sentinelChannelFooter">
+                                        <button is="emby-button" type="button" class="raised sentinelTestButton" data-sentinel-test-channel="discord">Send Test</button>
+                                        <span class="sentinelTestResult" data-sentinel-test-result="discord"></span>
+                                    </div>
+                                </div>
 
-                        <div class="verticalSection-extrabottompadding">
-                            <h3>Discord</h3>
-                            <label class="checkboxContainer">
-                                <input is="emby-checkbox" type="checkbox" id="DiscordEnabled" />
-                                <span>Enable</span>
-                            </label>
-                            <div class="inputContainer">
-                                <label class="inputLabel inputLabelUnfocused" for="DiscordWebhookUrl">Discord Webhook URL</label>
-                                <input is="emby-input" type="text" id="DiscordWebhookUrl" />
-                            </div>
-                            <div class="selectContainer">
-                                <label class="selectLabel" for="DiscordMinSeverity">Minimum Severity</label>
-                                <select is="emby-select" id="DiscordMinSeverity" class="emby-select-withcolor emby-select">
-                                    <option value="low">Low</option>
-                                    <option value="medium">Medium</option>
-                                    <option value="high">High</option>
-                                </select>
-                            </div>
-                            <button is="emby-button" type="button" class="raised sentinelTestButton" data-sentinel-test-channel="discord">Send Test</button>
-                            <span class="sentinelTestResult" data-sentinel-test-result="discord"></span>
-                        </div>
+                                <div class="sentinelChannelCard sentinelChannelTelegram">
+                                    <h3>Telegram</h3>
+                                    <label class="checkboxContainer">
+                                        <input is="emby-checkbox" type="checkbox" id="TelegramEnabled" />
+                                        <span>Enable</span>
+                                    </label>
+                                    <div class="inputContainer">
+                                        <label class="inputLabel inputLabelUnfocused" for="TelegramBotToken">Bot Token</label>
+                                        <input is="emby-input" type="text" id="TelegramBotToken" />
+                                    </div>
+                                    <div class="inputContainer">
+                                        <label class="inputLabel inputLabelUnfocused" for="TelegramChatId">Chat ID</label>
+                                        <input is="emby-input" type="text" id="TelegramChatId" />
+                                    </div>
+                                    <div class="selectContainer">
+                                        <label class="selectLabel" for="TelegramMinSeverity">Minimum Severity</label>
+                                        <select is="emby-select" id="TelegramMinSeverity" class="emby-select-withcolor emby-select">
+                                            <option value="low">Low</option>
+                                            <option value="medium">Medium</option>
+                                            <option value="high">High</option>
+                                        </select>
+                                    </div>
+                                    <div class="sentinelChannelFooter">
+                                        <button is="emby-button" type="button" class="raised sentinelTestButton" data-sentinel-test-channel="telegram">Send Test</button>
+                                        <span class="sentinelTestResult" data-sentinel-test-result="telegram"></span>
+                                    </div>
+                                </div>
 
-                        <div class="verticalSection-extrabottompadding">
-                            <h3>Telegram</h3>
-                            <label class="checkboxContainer">
-                                <input is="emby-checkbox" type="checkbox" id="TelegramEnabled" />
-                                <span>Enable</span>
-                            </label>
-                            <div class="inputContainer">
-                                <label class="inputLabel inputLabelUnfocused" for="TelegramBotToken">Bot Token</label>
-                                <input is="emby-input" type="text" id="TelegramBotToken" />
+                                <div class="sentinelChannelCard sentinelChannelEmail">
+                                    <h3>Email</h3>
+                                    <label class="checkboxContainer">
+                                        <input is="emby-checkbox" type="checkbox" id="EmailEnabled" />
+                                        <span>Enable</span>
+                                    </label>
+                                    <div class="inputContainer">
+                                        <label class="inputLabel inputLabelUnfocused" for="EmailSmtpHost">SMTP Host</label>
+                                        <input is="emby-input" type="text" id="EmailSmtpHost" />
+                                    </div>
+                                    <div class="inputContainer">
+                                        <label class="inputLabel inputLabelUnfocused" for="EmailSmtpPort">SMTP Port</label>
+                                        <input is="emby-input" type="number" id="EmailSmtpPort" />
+                                    </div>
+                                    <div class="inputContainer">
+                                        <label class="inputLabel inputLabelUnfocused" for="EmailSmtpUsername">SMTP Username</label>
+                                        <input is="emby-input" type="text" id="EmailSmtpUsername" />
+                                    </div>
+                                    <div class="inputContainer">
+                                        <label class="inputLabel inputLabelUnfocused" for="EmailSmtpPassword">SMTP Password</label>
+                                        <input is="emby-input" type="password" id="EmailSmtpPassword" />
+                                    </div>
+                                    <div class="inputContainer">
+                                        <label class="inputLabel inputLabelUnfocused" for="EmailFromAddress">From Address</label>
+                                        <input is="emby-input" type="text" id="EmailFromAddress" />
+                                    </div>
+                                    <div class="inputContainer">
+                                        <label class="inputLabel inputLabelUnfocused" for="EmailToAddress">To Address</label>
+                                        <input is="emby-input" type="text" id="EmailToAddress" />
+                                    </div>
+                                    <div class="selectContainer">
+                                        <label class="selectLabel" for="EmailMinSeverity">Minimum Severity</label>
+                                        <select is="emby-select" id="EmailMinSeverity" class="emby-select-withcolor emby-select">
+                                            <option value="low">Low</option>
+                                            <option value="medium">Medium</option>
+                                            <option value="high">High</option>
+                                        </select>
+                                    </div>
+                                    <div class="sentinelChannelFooter">
+                                        <button is="emby-button" type="button" class="raised sentinelTestButton" data-sentinel-test-channel="email">Send Test</button>
+                                        <span class="sentinelTestResult" data-sentinel-test-result="email"></span>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="inputContainer">
-                                <label class="inputLabel inputLabelUnfocused" for="TelegramChatId">Chat ID</label>
-                                <input is="emby-input" type="text" id="TelegramChatId" />
-                            </div>
-                            <div class="selectContainer">
-                                <label class="selectLabel" for="TelegramMinSeverity">Minimum Severity</label>
-                                <select is="emby-select" id="TelegramMinSeverity" class="emby-select-withcolor emby-select">
-                                    <option value="low">Low</option>
-                                    <option value="medium">Medium</option>
-                                    <option value="high">High</option>
-                                </select>
-                            </div>
-                            <button is="emby-button" type="button" class="raised sentinelTestButton" data-sentinel-test-channel="telegram">Send Test</button>
-                            <span class="sentinelTestResult" data-sentinel-test-result="telegram"></span>
                         </div>
-
-                        <div class="verticalSection-extrabottompadding">
-                            <h3>Email</h3>
-                            <label class="checkboxContainer">
-                                <input is="emby-checkbox" type="checkbox" id="EmailEnabled" />
-                                <span>Enable</span>
-                            </label>
-                            <div class="inputContainer">
-                                <label class="inputLabel inputLabelUnfocused" for="EmailSmtpHost">SMTP Host</label>
-                                <input is="emby-input" type="text" id="EmailSmtpHost" />
-                            </div>
-                            <div class="inputContainer">
-                                <label class="inputLabel inputLabelUnfocused" for="EmailSmtpPort">SMTP Port</label>
-                                <input is="emby-input" type="number" id="EmailSmtpPort" />
-                            </div>
-                            <div class="inputContainer">
-                                <label class="inputLabel inputLabelUnfocused" for="EmailSmtpUsername">SMTP Username</label>
-                                <input is="emby-input" type="text" id="EmailSmtpUsername" />
-                            </div>
-                            <div class="inputContainer">
-                                <label class="inputLabel inputLabelUnfocused" for="EmailSmtpPassword">SMTP Password</label>
-                                <input is="emby-input" type="password" id="EmailSmtpPassword" />
-                            </div>
-                            <div class="inputContainer">
-                                <label class="inputLabel inputLabelUnfocused" for="EmailFromAddress">From Address</label>
-                                <input is="emby-input" type="text" id="EmailFromAddress" />
-                            </div>
-                            <div class="inputContainer">
-                                <label class="inputLabel inputLabelUnfocused" for="EmailToAddress">To Address</label>
-                                <input is="emby-input" type="text" id="EmailToAddress" />
-                            </div>
-                            <div class="selectContainer">
-                                <label class="selectLabel" for="EmailMinSeverity">Minimum Severity</label>
-                                <select is="emby-select" id="EmailMinSeverity" class="emby-select-withcolor emby-select">
-                                    <option value="low">Low</option>
-                                    <option value="medium">Medium</option>
-                                    <option value="high">High</option>
-                                </select>
-                            </div>
-                            <button is="emby-button" type="button" class="raised sentinelTestButton" data-sentinel-test-channel="email">Send Test</button>
-                            <span class="sentinelTestResult" data-sentinel-test-result="email"></span>
-                        </div>
-                    </div>
+                    </details>
 
                     <div>
                         <button is="emby-button" type="submit" class="raised button-submit block emby-button">
@@ -147,11 +160,89 @@
                 </form>
                 <style>
                     #SentinelConfigPage {
-                        --sentinel-radius: 8px;
+                        --sentinel-radius: 10px;
                         --sentinel-gap-sm: 0.5em;
                         --sentinel-gap-md: 0.75em;
+                        --sentinel-gap-lg: 1.5em;
                         --sentinel-border: rgba(127, 127, 127, 0.25);
                         --sentinel-surface: rgba(127, 127, 127, 0.08);
+                        --sentinel-surface-strong: rgba(127, 127, 127, 0.14);
+                    }
+                    .sentinelPageHeader {
+                        margin-bottom: var(--sentinel-gap-lg);
+                    }
+                    .sentinelPageHeader p {
+                        opacity: 0.75;
+                        margin-top: 0.25em;
+                    }
+                    .sentinelSettingsDetails {
+                        margin: 0 0 var(--sentinel-gap-lg);
+                        border: 1px solid var(--sentinel-border);
+                        border-radius: var(--sentinel-radius);
+                        background: var(--sentinel-surface);
+                        overflow: hidden;
+                    }
+                    .sentinelSettingsDetails > summary {
+                        cursor: pointer;
+                        padding: var(--sentinel-gap-md) 1em;
+                        font-weight: 600;
+                        list-style: none;
+                        display: flex;
+                        align-items: center;
+                        gap: 0.5em;
+                        user-select: none;
+                    }
+                    .sentinelSettingsDetails > summary::-webkit-details-marker {
+                        display: none;
+                    }
+                    .sentinelSettingsDetails > summary::before {
+                        content: '▸';
+                        display: inline-block;
+                        transition: transform 0.15s ease;
+                    }
+                    .sentinelSettingsDetails[open] > summary::before {
+                        transform: rotate(90deg);
+                    }
+                    .sentinelSettingsBody {
+                        padding: 0 1em 1em;
+                    }
+                    .sentinelChannelGrid {
+                        display: grid;
+                        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+                        gap: var(--sentinel-gap-md);
+                        margin-top: var(--sentinel-gap-md);
+                    }
+                    .sentinelChannelCard {
+                        background: var(--sentinel-surface-strong);
+                        border: 1px solid var(--sentinel-border);
+                        border-left-width: 4px;
+                        border-radius: var(--sentinel-radius);
+                        padding: var(--sentinel-gap-md) 1em;
+                    }
+                    .sentinelChannelCard.sentinelChannelWebhook { border-left-color: #4a90d9; }
+                    .sentinelChannelCard.sentinelChannelDiscord { border-left-color: #5865f2; }
+                    .sentinelChannelCard.sentinelChannelTelegram { border-left-color: #229ed9; }
+                    .sentinelChannelCard.sentinelChannelEmail { border-left-color: #e0a030; }
+                    .sentinelChannelCard h3 {
+                        margin-top: 0;
+                        margin-bottom: var(--sentinel-gap-sm);
+                        font-size: 1em;
+                    }
+                    .sentinelChannelFooter {
+                        display: flex;
+                        align-items: center;
+                        gap: var(--sentinel-gap-sm);
+                        margin-top: var(--sentinel-gap-md);
+                        flex-wrap: wrap;
+                    }
+                    .sentinelTestResult {
+                        font-size: 0.85em;
+                    }
+                    .sentinelTestResult.sentinelTestSuccess {
+                        color: #4caf50;
+                    }
+                    .sentinelTestResult.sentinelTestFailure {
+                        color: #e05252;
                     }
                     .sentinelIncidentCard {
                         background: var(--sentinel-surface);
@@ -362,16 +453,19 @@
                             var resultSpan = document.querySelector('[data-sentinel-test-result="' + channelName + '"]');
 
                             if (resultSpan) {
+                                resultSpan.className = 'sentinelTestResult';
                                 resultSpan.textContent = 'Sending…';
                             }
 
                             var url = ApiClient.getUrl('Sentinel/notifications/test/' + encodeURIComponent(channelName));
                             ApiClient.ajax({ type: 'POST', url: url }).then(function () {
                                 if (resultSpan) {
+                                    resultSpan.className = 'sentinelTestResult sentinelTestSuccess';
                                     resultSpan.textContent = 'Sent successfully.';
                                 }
                             }).catch(function () {
                                 if (resultSpan) {
+                                    resultSpan.className = 'sentinelTestResult sentinelTestFailure';
                                     resultSpan.textContent = 'Failed to send — check the channel is fully configured and the destination is reachable.';
                                 }
                             });
