@@ -63,6 +63,11 @@ public sealed partial class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton(new RuleEngine(AllDiagnosticRules.All));
         serviceCollection.AddSingleton(TimeProvider.System);
         serviceCollection.AddHostedService<PlaybackCollectorHostedService>();
+
+        serviceCollection.AddHttpClient("Sentinel.Notifications", client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(10);
+        });
     }
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Sentinel: Plugin.Instance was null when resolving the database path — this indicates a plugin loading order problem.")]
