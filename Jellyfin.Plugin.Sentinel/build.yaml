@@ -1,7 +1,7 @@
 ---
 name: "Sentinel"
 guid: "4b5e3a79-7798-4066-841e-db7eb0125dc9"
-version: "0.1.5.2"
+version: "0.1.5.3"
 targetAbi: "12.1.0.0"
 framework: "net10.0"
 overview: "Evidence-based root-cause diagnosis for Jellyfin playback problems"
@@ -72,6 +72,19 @@ artifacts:
 - "runtimes/osx-x64/native/libe_sqlite3.dylib"
 - "runtimes/osx-arm64/native/libe_sqlite3.dylib"
 changelog: >
+  0.1.5.3: Real dashboard visual overhaul, in direct response to live-server feedback that the
+  previous release's UI "still doesn't look good". The Notification Channels settings section
+  (added in 0.1.5.2) was completely unstyled — a long list of plain stacked form fields sitting
+  above the actual incident dashboard, so it was the first thing visible on page load instead of
+  Sentinel's real content. Now: the settings collapse into a closed-by-default accordion so
+  incidents are the first thing visible; each of the four channels (Webhook/Discord/Telegram/
+  Email) gets its own card in a responsive grid with brand-accurate accent colors; test-send
+  results are color-coded (green success / red failure) instead of plain text. Every existing
+  field id and API interaction is unchanged — pure structural/CSS restructuring, reviewed with
+  explicit focus on confirming none of the 18 settings-field ids or 4 channel-name strings drifted
+  during the rewrite. Still not verified in a real browser by this session (no reachable instance
+  here) — this release exists specifically so the user can judge the actual result themselves on
+  their own server.
   0.1.5.2: Adds Notification Delivery — Webhook, Discord, Telegram, and Email (via MailKit)
   channels, a severity mapping (diagnosis confidence to low/medium/high), and a dedup-aware
   dispatcher that notifies exactly once per new-or-reopened Incident (never per raw diagnosis or
