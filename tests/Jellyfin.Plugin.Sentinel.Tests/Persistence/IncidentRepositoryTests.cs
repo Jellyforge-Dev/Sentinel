@@ -33,7 +33,7 @@ public class IncidentRepositoryTests : IDisposable
         var itemId = Guid.NewGuid().ToString();
         var diagnosisId = InsertDiagnosis("BUFFERING", "session-a", "Fire TV", "Living Room", itemId);
 
-        var result = _incidentRepository.UpsertOnDiagnosis(diagnosisId, "BUFFERING", itemId, "Fire TV", "Living Room", "Alice");
+        var result = _incidentRepository.UpsertOnDiagnosis(diagnosisId, "BUFFERING", itemId, "Fire TV", "Living Room", "Alice", false);
 
         Assert.True(result.IsNewOrReopened);
 
@@ -58,10 +58,10 @@ public class IncidentRepositoryTests : IDisposable
         var itemId = Guid.NewGuid().ToString();
 
         var firstDiagnosisId = InsertDiagnosis("BUFFERING", "session-a", "Fire TV", "Living Room", itemId);
-        _incidentRepository.UpsertOnDiagnosis(firstDiagnosisId, "BUFFERING", itemId, "Fire TV", "Living Room", "Alice");
+        _incidentRepository.UpsertOnDiagnosis(firstDiagnosisId, "BUFFERING", itemId, "Fire TV", "Living Room", "Alice", false);
 
         var secondDiagnosisId = InsertDiagnosis("BUFFERING", "session-b", "Fire TV", "Living Room", itemId);
-        var result = _incidentRepository.UpsertOnDiagnosis(secondDiagnosisId, "BUFFERING", itemId, "Fire TV", "Living Room", "Alice");
+        var result = _incidentRepository.UpsertOnDiagnosis(secondDiagnosisId, "BUFFERING", itemId, "Fire TV", "Living Room", "Alice", false);
 
         Assert.False(result.IsNewOrReopened);
 
@@ -78,10 +78,10 @@ public class IncidentRepositoryTests : IDisposable
         var itemId = Guid.NewGuid().ToString();
 
         var firstDiagnosisId = InsertDiagnosis("BUFFERING", "session-a", "Fire TV", "Living Room", itemId);
-        _incidentRepository.UpsertOnDiagnosis(firstDiagnosisId, "BUFFERING", itemId, "Fire TV", "Living Room", "Alice");
+        _incidentRepository.UpsertOnDiagnosis(firstDiagnosisId, "BUFFERING", itemId, "Fire TV", "Living Room", "Alice", false);
 
         var secondDiagnosisId = InsertDiagnosis("BUFFERING", "session-b", "Fire TV", "Living Room", itemId);
-        _incidentRepository.UpsertOnDiagnosis(secondDiagnosisId, "BUFFERING", itemId, "Fire TV", "Living Room", "Bob");
+        _incidentRepository.UpsertOnDiagnosis(secondDiagnosisId, "BUFFERING", itemId, "Fire TV", "Living Room", "Bob", false);
 
         var recent = _incidentRepository.GetRecent(50);
 
@@ -95,12 +95,12 @@ public class IncidentRepositoryTests : IDisposable
         var itemId = Guid.NewGuid().ToString();
 
         var firstDiagnosisId = InsertDiagnosis("BUFFERING", "session-a", "Fire TV", "Living Room", itemId);
-        var incidentId = _incidentRepository.UpsertOnDiagnosis(firstDiagnosisId, "BUFFERING", itemId, "Fire TV", "Living Room", "Alice").IncidentId;
+        var incidentId = _incidentRepository.UpsertOnDiagnosis(firstDiagnosisId, "BUFFERING", itemId, "Fire TV", "Living Room", "Alice", false).IncidentId;
 
         _incidentRepository.Resolve(incidentId);
 
         var secondDiagnosisId = InsertDiagnosis("BUFFERING", "session-b", "Fire TV", "Living Room", itemId);
-        var result = _incidentRepository.UpsertOnDiagnosis(secondDiagnosisId, "BUFFERING", itemId, "Fire TV", "Living Room", "Alice");
+        var result = _incidentRepository.UpsertOnDiagnosis(secondDiagnosisId, "BUFFERING", itemId, "Fire TV", "Living Room", "Alice", false);
 
         Assert.True(result.IsNewOrReopened);
 
@@ -119,7 +119,7 @@ public class IncidentRepositoryTests : IDisposable
     {
         var itemId = Guid.NewGuid().ToString();
         var diagnosisId = InsertDiagnosis("BUFFERING", "session-a", "Fire TV", "Living Room", itemId);
-        var incidentId = _incidentRepository.UpsertOnDiagnosis(diagnosisId, "BUFFERING", itemId, "Fire TV", "Living Room", "Alice").IncidentId;
+        var incidentId = _incidentRepository.UpsertOnDiagnosis(diagnosisId, "BUFFERING", itemId, "Fire TV", "Living Room", "Alice", false).IncidentId;
 
         _incidentRepository.Acknowledge(incidentId);
 
@@ -134,7 +134,7 @@ public class IncidentRepositoryTests : IDisposable
     {
         var itemId = Guid.NewGuid().ToString();
         var diagnosisId = InsertDiagnosis("BUFFERING", "session-a", "Fire TV", "Living Room", itemId);
-        var incidentId = _incidentRepository.UpsertOnDiagnosis(diagnosisId, "BUFFERING", itemId, "Fire TV", "Living Room", "Alice").IncidentId;
+        var incidentId = _incidentRepository.UpsertOnDiagnosis(diagnosisId, "BUFFERING", itemId, "Fire TV", "Living Room", "Alice", false).IncidentId;
 
         _incidentRepository.Resolve(incidentId);
 
@@ -142,6 +142,76 @@ public class IncidentRepositoryTests : IDisposable
 
         Assert.Equal(IncidentStatus.Resolved, recent[0].Status);
         Assert.NotNull(recent[0].ResolvedAtUtc);
+    }
+
+    [Fact]
+    public void UpdateResolutionNote_SetsNote_OnMatchingIncident()
+    {
+        var itemId = Guid.NewGuid().ToString();
+        var diagnosisId = InsertDiagnosis("BUFFERING", "session-a", "Fire TV", "Living Room", itemId);
+        var incidentId = _incidentRepository.UpsertOnDiagnosis(diagnosisId, "BUFFERING", itemId, "Fire TV", "Living Room", "Alice", false).IncidentId;
+
+        _incidentRepository.UpdateResolutionNote(incidentId, "Enabled hardware transcoding for this device.");
+
+        var recent = _incidentRepository.GetRecent(50);
+
+        Assert.Equal("Enabled hardware transcoding for this device.", recent[0].ResolutionNote);
+    }
+
+    [Fact]
+    public void IsExcepted_ReturnsFalse_WhenNoMatchingExceptionExists()
+    {
+        Assert.False(_incidentRepository.IsExcepted("BUFFERING", "Alice"));
+    }
+
+    [Fact]
+    public void MarkExcepted_MakesIsExceptedTrue_ForMatchingCodeAndUser_ButNotForOtherUsers()
+    {
+        Assert.False(_incidentRepository.IsExcepted("BUFFERING", "Alice"));
+
+        _incidentRepository.MarkExcepted("BUFFERING", "Alice", "Uses a GPU for transcoding intentionally.");
+
+        Assert.True(_incidentRepository.IsExcepted("BUFFERING", "Alice"));
+        Assert.False(_incidentRepository.IsExcepted("BUFFERING", "Bob"));
+    }
+
+    [Fact]
+    public void MarkExcepted_RetroactivelyMarksAlreadyOpenIncidents_AsExcepted()
+    {
+        var itemId = Guid.NewGuid().ToString();
+        var diagnosisId = InsertDiagnosis("BUFFERING", "session-a", "Fire TV", "Living Room", itemId);
+        _incidentRepository.UpsertOnDiagnosis(diagnosisId, "BUFFERING", itemId, "Fire TV", "Living Room", "Alice", false);
+
+        _incidentRepository.MarkExcepted("BUFFERING", "Alice", string.Empty);
+
+        var recent = _incidentRepository.GetRecent(50);
+
+        Assert.True(recent[0].IsExcepted);
+    }
+
+    [Fact]
+    public void UpsertOnDiagnosis_DoesNotMarkNewIncidentExcepted_WhenIsExceptedArgumentIsFalse()
+    {
+        var itemId = Guid.NewGuid().ToString();
+        var diagnosisId = InsertDiagnosis("BUFFERING", "session-a", "Fire TV", "Living Room", itemId);
+
+        _incidentRepository.UpsertOnDiagnosis(diagnosisId, "BUFFERING", itemId, "Fire TV", "Living Room", "Alice", false);
+
+        Assert.False(_incidentRepository.GetRecent(50)[0].IsExcepted);
+    }
+
+    [Fact]
+    public void ClearExcepted_MakesIsExceptedFalse_ForMatchingIncidentsAndFutureUpserts()
+    {
+        var itemId = Guid.NewGuid().ToString();
+        var diagnosisId = InsertDiagnosis("BUFFERING", "session-a", "Fire TV", "Living Room", itemId);
+        _incidentRepository.UpsertOnDiagnosis(diagnosisId, "BUFFERING", itemId, "Fire TV", "Living Room", "Alice", false);
+        _incidentRepository.MarkExcepted("BUFFERING", "Alice", string.Empty);
+
+        _incidentRepository.ClearExcepted("BUFFERING", "Alice");
+
+        Assert.False(_incidentRepository.IsExcepted("BUFFERING", "Alice"));
+        Assert.False(_incidentRepository.GetRecent(50)[0].IsExcepted);
     }
 
     private long InsertDiagnosis(string code, string sessionId, string client, string deviceName, string itemId)

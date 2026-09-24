@@ -246,8 +246,9 @@ public sealed partial class PlaybackCollectorHostedService : IHostedService
             foreach (var diagnosis in diagnoses)
             {
                 var diagnosisId = _diagnosisRepository.Insert(playbackEventId, diagnosis);
-                var upsertResult = _incidentRepository.UpsertOnDiagnosis(diagnosisId, diagnosis.Code, playbackEvent.ItemId, playbackEvent.Client, playbackEvent.DeviceName, playbackEvent.UserName);
-                if (upsertResult.IsNewOrReopened)
+                var isExcepted = _incidentRepository.IsExcepted(diagnosis.Code, playbackEvent.UserName);
+                var upsertResult = _incidentRepository.UpsertOnDiagnosis(diagnosisId, diagnosis.Code, playbackEvent.ItemId, playbackEvent.Client, playbackEvent.DeviceName, playbackEvent.UserName, isExcepted);
+                if (upsertResult.IsNewOrReopened && !upsertResult.IsExcepted)
                 {
                     _ = DispatchNotificationSafelyAsync(diagnosis, playbackEvent);
                 }

@@ -51,5 +51,14 @@
   "UI_STATS_TOTAL": "Total",
   "UI_STATS_ACTIVE": "Active",
   "UI_FILTER_ALL": "All",
-  "UI_NO_INCIDENTS_FOR_FILTER": "No incidents match this filter."
+  "UI_NO_INCIDENTS_FOR_FILTER": "No incidents match this filter.",
+  "UI_CLICK_FOR_DETAILS": "Click for details",
+  "UI_NOTE_LABEL": "Resolution note",
+  "UI_NOTE_PLACEHOLDER": "What fixed this for the user? (e.g. enabled hardware transcoding, updated the client app)",
+  "UI_NOTE_SAVE_BUTTON": "Save note",
+  "UI_NOTE_SAVED": "Note saved.",
+  "UI_MARK_EXCEPTION_BUTTON": "Mark as expected",
+  "UI_UNMARK_EXCEPTION_BUTTON": "Remove exception",
+  "UI_FILTER_EXPECTED": "Expected",
+  "UI_EXCEPTED_BADGE": "Expected — not flagged as a problem"
 }

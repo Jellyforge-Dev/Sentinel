@@ -11,7 +11,10 @@ namespace Jellyfin.Plugin.Sentinel.Persistence;
 /// that just reopened after being resolved) versus a plain occurrence-count increment on an
 /// already-known, already-notified incident.
 /// </summary>
-public readonly record struct IncidentUpsertResult(long IncidentId, bool IsNewOrReopened);
+/// <param name="IncidentId">The ID of the incident that was created, incremented, or reopened.</param>
+/// <param name="IsNewOrReopened">Whether this specific call is the one that should trigger a notification.</param>
+/// <param name="IsExcepted">Whether this incident's (Code, UserName) currently matches an admin-created exception — callers must skip notification dispatch when this is true, even if <paramref name="IsNewOrReopened"/> is also true.</param>
+public readonly record struct IncidentUpsertResult(long IncidentId, bool IsNewOrReopened, bool IsExcepted);
 
 /// <summary>
 /// Repository for the Incident Engine's dedup/lifecycle logic — groups <see cref="Diagnosis"/>
@@ -43,8 +46,9 @@ public sealed class IncidentRepository
     /// <param name="client">The Jellyfin client name.</param>
     /// <param name="deviceName">The device name.</param>
     /// <param name="userName">The Jellyfin username most recently affected — not part of the fingerprint, but written on every branch so <see cref="Incident.UserName"/> always reflects the most recent occurrence, matching <see cref="Incident.LastSeenUtc"/>'s semantics.</param>
+    /// <param name="isExcepted">Whether this (code, userName) combination currently matches an admin-created exception — see <see cref="MarkExcepted"/>. Written on every branch, like <paramref name="userName"/>, so an exception added after an incident already exists still takes effect the next time that incident recurs.</param>
     /// <returns>The ID of the incident that was created, incremented, or reopened, and whether this call is the one that should trigger a notification.</returns>
-    public IncidentUpsertResult UpsertOnDiagnosis(long diagnosisId, string code, string itemId, string client, string deviceName, string userName)
+    public IncidentUpsertResult UpsertOnDiagnosis(long diagnosisId, string code, string itemId, string client, string deviceName, string userName, bool isExcepted)
     {
         using var connection = _database.OpenConnection();
         using var transaction = connection.BeginTransaction();
@@ -84,16 +88,17 @@ public sealed class IncidentRepository
                 updateCommand.CommandText = existingStatus == nameof(IncidentStatus.Resolved)
                     ? """
                       UPDATE Incident
-                      SET Status = $reopened, OccurrenceCount = OccurrenceCount + 1, LastSeenUtc = $now, UserName = $userName, ResolvedAtUtc = NULL
+                      SET Status = $reopened, OccurrenceCount = OccurrenceCount + 1, LastSeenUtc = $now, UserName = $userName, ResolvedAtUtc = NULL, IsExcepted = $isExcepted
                       WHERE Id = $id;
                       """
                     : """
-                      UPDATE Incident SET OccurrenceCount = OccurrenceCount + 1, LastSeenUtc = $now, UserName = $userName WHERE Id = $id;
+                      UPDATE Incident SET OccurrenceCount = OccurrenceCount + 1, LastSeenUtc = $now, UserName = $userName, IsExcepted = $isExcepted WHERE Id = $id;
                       """;
 #pragma warning restore CA2100
                 updateCommand.Parameters.AddWithValue("$id", incidentId);
                 updateCommand.Parameters.AddWithValue("$now", now);
                 updateCommand.Parameters.AddWithValue("$userName", userName);
+                updateCommand.Parameters.AddWithValue("$isExcepted", isExcepted);
                 isNewOrReopened = existingStatus == nameof(IncidentStatus.Resolved);
                 if (isNewOrReopened)
                 {
@@ -110,8 +115,8 @@ public sealed class IncidentRepository
                 insertCommand.Transaction = transaction;
                 insertCommand.CommandText =
                     """
-                    INSERT INTO Incident (Code, ItemId, Client, DeviceName, UserName, Status, OccurrenceCount, FirstSeenUtc, LastSeenUtc)
-                    VALUES ($code, $itemId, $client, $deviceName, $userName, $detected, 1, $now, $now);
+                    INSERT INTO Incident (Code, ItemId, Client, DeviceName, UserName, Status, OccurrenceCount, FirstSeenUtc, LastSeenUtc, IsExcepted)
+                    VALUES ($code, $itemId, $client, $deviceName, $userName, $detected, 1, $now, $now, $isExcepted);
                     SELECT last_insert_rowid();
                     """;
                 insertCommand.Parameters.AddWithValue("$code", code);
@@ -121,6 +126,7 @@ public sealed class IncidentRepository
                 insertCommand.Parameters.AddWithValue("$userName", userName);
                 insertCommand.Parameters.AddWithValue("$detected", nameof(IncidentStatus.Detected));
                 insertCommand.Parameters.AddWithValue("$now", now);
+                insertCommand.Parameters.AddWithValue("$isExcepted", isExcepted);
                 incidentId = (long)insertCommand.ExecuteScalar()!;
             }
         }
@@ -135,7 +141,7 @@ public sealed class IncidentRepository
         }
 
         transaction.Commit();
-        return new IncidentUpsertResult(incidentId, isNewOrReopened);
+        return new IncidentUpsertResult(incidentId, isNewOrReopened, isExcepted);
     }
 
     /// <summary>
@@ -153,7 +159,7 @@ public sealed class IncidentRepository
         command.CommandText =
             """
             SELECT Id, Code, ItemId, Client, DeviceName, UserName, Status, OccurrenceCount,
-                   FirstSeenUtc, LastSeenUtc, AcknowledgedAtUtc, ResolvedAtUtc
+                   FirstSeenUtc, LastSeenUtc, AcknowledgedAtUtc, ResolvedAtUtc, ResolutionNote, IsExcepted
             FROM Incident
             ORDER BY LastSeenUtc DESC, Id DESC
             LIMIT $limit;
@@ -177,11 +183,121 @@ public sealed class IncidentRepository
                 FirstSeenUtc = DateTime.Parse(reader.GetString(8), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
                 LastSeenUtc = DateTime.Parse(reader.GetString(9), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
                 AcknowledgedAtUtc = reader.IsDBNull(10) ? null : DateTime.Parse(reader.GetString(10), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
-                ResolvedAtUtc = reader.IsDBNull(11) ? null : DateTime.Parse(reader.GetString(11), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind)
+                ResolvedAtUtc = reader.IsDBNull(11) ? null : DateTime.Parse(reader.GetString(11), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
+                ResolutionNote = reader.GetString(12),
+                IsExcepted = reader.GetInt64(13) != 0
             });
         }
 
         return results;
+    }
+
+    /// <summary>
+    /// Checks whether (code, userName) currently matches an admin-created exception, for the
+    /// collector to pass into <see cref="UpsertOnDiagnosis"/>.
+    /// </summary>
+    /// <param name="code">The diagnostic rule code.</param>
+    /// <param name="userName">The Jellyfin username.</param>
+    /// <returns>True if this combination is currently marked as an accepted exception.</returns>
+    public bool IsExcepted(string code, string userName)
+    {
+        using var connection = _database.OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT COUNT(*) FROM IncidentException WHERE Code = $code AND UserName = $userName;";
+        command.Parameters.AddWithValue("$code", code);
+        command.Parameters.AddWithValue("$userName", userName);
+        return (long)command.ExecuteScalar()! > 0;
+    }
+
+    /// <summary>
+    /// Sets or replaces an incident's resolution note — free text on what ultimately fixed the
+    /// underlying problem for the user, e.g. "enabled hardware transcoding".
+    /// </summary>
+    /// <param name="incidentId">The incident's ID.</param>
+    /// <param name="note">The note text.</param>
+    public void UpdateResolutionNote(long incidentId, string note)
+    {
+        using var connection = _database.OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = "UPDATE Incident SET ResolutionNote = $note WHERE Id = $id;";
+        command.Parameters.AddWithValue("$note", note);
+        command.Parameters.AddWithValue("$id", incidentId);
+        command.ExecuteNonQuery();
+    }
+
+    /// <summary>
+    /// Records (code, userName) as an accepted exception — e.g. a user who intentionally always
+    /// transcodes via a GPU — and immediately marks every currently-open Incident row sharing that
+    /// (code, userName) as excepted, so the dashboard stops treating them as problems needing
+    /// attention without waiting for the fingerprint to recur.
+    /// </summary>
+    /// <param name="code">The diagnostic rule code.</param>
+    /// <param name="userName">The Jellyfin username.</param>
+    /// <param name="reason">An optional free-text reason, for the admin's own reference.</param>
+    public void MarkExcepted(string code, string userName, string reason)
+    {
+        using var connection = _database.OpenConnection();
+        using var transaction = connection.BeginTransaction();
+
+        using (var upsertCommand = connection.CreateCommand())
+        {
+            upsertCommand.Transaction = transaction;
+            upsertCommand.CommandText =
+                """
+                INSERT INTO IncidentException (Code, UserName, Reason, CreatedAtUtc)
+                VALUES ($code, $userName, $reason, $now)
+                ON CONFLICT (Code, UserName) DO UPDATE SET Reason = excluded.Reason;
+                """;
+            upsertCommand.Parameters.AddWithValue("$code", code);
+            upsertCommand.Parameters.AddWithValue("$userName", userName);
+            upsertCommand.Parameters.AddWithValue("$reason", reason);
+            upsertCommand.Parameters.AddWithValue("$now", DateTime.UtcNow.ToString("O"));
+            upsertCommand.ExecuteNonQuery();
+        }
+
+        using (var markCommand = connection.CreateCommand())
+        {
+            markCommand.Transaction = transaction;
+            markCommand.CommandText = "UPDATE Incident SET IsExcepted = 1 WHERE Code = $code AND UserName = $userName;";
+            markCommand.Parameters.AddWithValue("$code", code);
+            markCommand.Parameters.AddWithValue("$userName", userName);
+            markCommand.ExecuteNonQuery();
+        }
+
+        transaction.Commit();
+    }
+
+    /// <summary>
+    /// Removes (code, userName) as an accepted exception and clears the excepted flag on every
+    /// currently matching Incident row, so future and existing occurrences are treated as problems
+    /// again.
+    /// </summary>
+    /// <param name="code">The diagnostic rule code.</param>
+    /// <param name="userName">The Jellyfin username.</param>
+    public void ClearExcepted(string code, string userName)
+    {
+        using var connection = _database.OpenConnection();
+        using var transaction = connection.BeginTransaction();
+
+        using (var deleteCommand = connection.CreateCommand())
+        {
+            deleteCommand.Transaction = transaction;
+            deleteCommand.CommandText = "DELETE FROM IncidentException WHERE Code = $code AND UserName = $userName;";
+            deleteCommand.Parameters.AddWithValue("$code", code);
+            deleteCommand.Parameters.AddWithValue("$userName", userName);
+            deleteCommand.ExecuteNonQuery();
+        }
+
+        using (var clearCommand = connection.CreateCommand())
+        {
+            clearCommand.Transaction = transaction;
+            clearCommand.CommandText = "UPDATE Incident SET IsExcepted = 0 WHERE Code = $code AND UserName = $userName;";
+            clearCommand.Parameters.AddWithValue("$code", code);
+            clearCommand.Parameters.AddWithValue("$userName", userName);
+            clearCommand.ExecuteNonQuery();
+        }
+
+        transaction.Commit();
     }
 
     /// <summary>

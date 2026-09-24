@@ -121,6 +121,8 @@ public class SentinelController : ControllerBase
                 incident.Client,
                 incident.DeviceName,
                 incident.UserName,
+                incident.ResolutionNote,
+                incident.IsExcepted,
                 MediaName = ResolveMediaName(incident.ItemId),
                 Explanation = diagnosis?.Explanation,
                 Recommendation = diagnosis?.Recommendation,
@@ -159,6 +161,62 @@ public class SentinelController : ControllerBase
     }
 
     /// <summary>
+    /// Sets an incident's resolution note — free text on what ultimately fixed the underlying
+    /// problem for the affected user, e.g. "enabled hardware transcoding on this device".
+    /// </summary>
+    /// <param name="id">The incident's ID.</param>
+    /// <param name="request">The note text.</param>
+    [HttpPost("incidents/{id}/note")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public ActionResult UpdateIncidentNote(long id, [FromBody] IncidentNoteRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        _incidentRepository.UpdateResolutionNote(id, request.Note ?? string.Empty);
+        return Ok();
+    }
+
+    /// <summary>
+    /// Marks this incident's (Code, UserName) combination as an accepted exception — e.g. a user
+    /// who intentionally always transcodes via a GPU — so it stops being surfaced as a problem
+    /// needing attention, and future notifications for that combination are suppressed.
+    /// </summary>
+    /// <param name="id">The incident's ID.</param>
+    [HttpPost("incidents/{id}/except")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public ActionResult ExceptIncident(long id)
+    {
+        var incident = _incidentRepository.GetRecent(500).FirstOrDefault(i => i.Id == id);
+        if (incident is null)
+        {
+            return NotFound();
+        }
+
+        _incidentRepository.MarkExcepted(incident.Code, incident.UserName, string.Empty);
+        return Ok();
+    }
+
+    /// <summary>
+    /// Removes the exception on this incident's (Code, UserName) combination, so it is treated as
+    /// a normal problem again.
+    /// </summary>
+    /// <param name="id">The incident's ID.</param>
+    [HttpPost("incidents/{id}/unexcept")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public ActionResult UnexceptIncident(long id)
+    {
+        var incident = _incidentRepository.GetRecent(500).FirstOrDefault(i => i.Id == id);
+        if (incident is null)
+        {
+            return NotFound();
+        }
+
+        _incidentRepository.ClearExcepted(incident.Code, incident.UserName);
+        return Ok();
+    }
+
+    /// <summary>
     /// Gets the current language's dashboard UI strings, for the plugin's own configuration page
     /// to render its static labels in.
     /// </summary>
@@ -178,7 +236,9 @@ public class SentinelController : ControllerBase
             "UI_ACKNOWLEDGE_BUTTON", "UI_RESOLVE_BUTTON",
             "UI_STATUS_DETECTED", "UI_STATUS_ACKNOWLEDGED", "UI_STATUS_RESOLVED", "UI_STATUS_REOPENED",
             "UI_NO_INCIDENTS", "UI_LOAD_INCIDENTS_FAILED",
-            "UI_COL_USER", "UI_STATS_TOTAL", "UI_STATS_ACTIVE", "UI_FILTER_ALL", "UI_NO_INCIDENTS_FOR_FILTER"
+            "UI_COL_USER", "UI_STATS_TOTAL", "UI_STATS_ACTIVE", "UI_FILTER_ALL", "UI_NO_INCIDENTS_FOR_FILTER",
+            "UI_CLICK_FOR_DETAILS", "UI_NOTE_LABEL", "UI_NOTE_PLACEHOLDER", "UI_NOTE_SAVE_BUTTON", "UI_NOTE_SAVED",
+            "UI_MARK_EXCEPTION_BUTTON", "UI_UNMARK_EXCEPTION_BUTTON", "UI_FILTER_EXPECTED", "UI_EXCEPTED_BADGE"
         };
 
         var result = keys.ToDictionary(key => key, key => _localizationService.Translate(key, language));
@@ -196,8 +256,8 @@ public class SentinelController : ControllerBase
     [ProducesResponseType(StatusCodes.Status502BadGateway)]
     public async Task<ActionResult> SendTestNotification(string channelName, CancellationToken cancellationToken)
     {
-        var success = await _notificationDispatcher.SendTestNotificationAsync(channelName, cancellationToken).ConfigureAwait(false);
-        return success ? Ok() : StatusCode(StatusCodes.Status502BadGateway);
+        var result = await _notificationDispatcher.SendTestNotificationAsync(channelName, cancellationToken).ConfigureAwait(false);
+        return result.Success ? Ok() : StatusCode(StatusCodes.Status502BadGateway, new { result.Reason });
     }
 
     /// <summary>
@@ -226,4 +286,13 @@ public class SentinelController : ControllerBase
 
         return item.Name;
     }
+}
+
+/// <summary>
+/// The request body for <see cref="SentinelController.UpdateIncidentNote"/>.
+/// </summary>
+public sealed class IncidentNoteRequest
+{
+    /// <summary>Gets or sets the note text.</summary>
+    public string? Note { get; set; }
 }

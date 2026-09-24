@@ -110,6 +110,14 @@ public sealed class SentinelDatabase
                 NotifiedAtUtc TEXT NOT NULL,
                 PRIMARY KEY (PluginId, Version)
             );
+
+            CREATE TABLE IF NOT EXISTS IncidentException (
+                Code TEXT NOT NULL,
+                UserName TEXT NOT NULL,
+                Reason TEXT NOT NULL DEFAULT '',
+                CreatedAtUtc TEXT NOT NULL,
+                PRIMARY KEY (Code, UserName)
+            );
             """;
         command.ExecuteNonQuery();
 
@@ -118,6 +126,8 @@ public sealed class SentinelDatabase
 
         AddColumnIfMissing(connection, "PlaybackEvent", "UserName", "UserName TEXT NOT NULL DEFAULT ''");
         AddColumnIfMissing(connection, "Incident", "UserName", "UserName TEXT NOT NULL DEFAULT ''");
+        AddColumnIfMissing(connection, "Incident", "ResolutionNote", "ResolutionNote TEXT NOT NULL DEFAULT ''");
+        AddColumnIfMissing(connection, "Incident", "IsExcepted", "IsExcepted INTEGER NOT NULL DEFAULT 0");
     }
 
     // CA2100 flags the interpolated CommandText below because SQLite has no parameter syntax for

@@ -51,5 +51,14 @@
   "UI_STATS_TOTAL": "Totalt",
   "UI_STATS_ACTIVE": "Aktiva",
   "UI_FILTER_ALL": "Alla",
-  "UI_NO_INCIDENTS_FOR_FILTER": "Inga incidenter matchar detta filter."
+  "UI_NO_INCIDENTS_FOR_FILTER": "Inga incidenter matchar detta filter.",
+  "UI_CLICK_FOR_DETAILS": "Klicka för mer information",
+  "UI_NOTE_LABEL": "Lösningsanteckning",
+  "UI_NOTE_PLACEHOLDER": "Vad löste detta för användaren? (t.ex. aktiverade hårdvarutranskodning, uppdaterade klientappen)",
+  "UI_NOTE_SAVE_BUTTON": "Spara anteckning",
+  "UI_NOTE_SAVED": "Anteckning sparad.",
+  "UI_MARK_EXCEPTION_BUTTON": "Markera som förväntad",
+  "UI_UNMARK_EXCEPTION_BUTTON": "Ta bort undantag",
+  "UI_FILTER_EXPECTED": "Förväntad",
+  "UI_EXCEPTED_BADGE": "Förväntad — inte flaggad som ett problem"
 }

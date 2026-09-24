@@ -51,5 +51,14 @@
   "UI_STATS_TOTAL": "Total",
   "UI_STATS_ACTIVE": "Actifs",
   "UI_FILTER_ALL": "Tous",
-  "UI_NO_INCIDENTS_FOR_FILTER": "Aucun incident ne correspond à ce filtre."
+  "UI_NO_INCIDENTS_FOR_FILTER": "Aucun incident ne correspond à ce filtre.",
+  "UI_CLICK_FOR_DETAILS": "Cliquez pour plus de détails",
+  "UI_NOTE_LABEL": "Note de résolution",
+  "UI_NOTE_PLACEHOLDER": "Qu'est-ce qui a résolu ce problème pour l'utilisateur ? (p. ex. transcodage matériel activé, application client mise à jour)",
+  "UI_NOTE_SAVE_BUTTON": "Enregistrer la note",
+  "UI_NOTE_SAVED": "Note enregistrée.",
+  "UI_MARK_EXCEPTION_BUTTON": "Marquer comme attendu",
+  "UI_UNMARK_EXCEPTION_BUTTON": "Supprimer l'exception",
+  "UI_FILTER_EXPECTED": "Attendu",
+  "UI_EXCEPTED_BADGE": "Attendu — non signalé comme problème"
 }
