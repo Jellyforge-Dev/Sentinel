@@ -176,9 +176,10 @@ public class SentinelController : ControllerBase
     }
 
     /// <summary>
-    /// Marks this incident's (Code, UserName) combination as an accepted exception — e.g. a user
-    /// who intentionally always transcodes via a GPU — so it stops being surfaced as a problem
-    /// needing attention, and future notifications for that combination are suppressed.
+    /// Marks this incident's user as an accepted exception — e.g. a user who intentionally always
+    /// transcodes via a GPU — so every incident for that user (any rule, any media item) stops
+    /// being surfaced as a problem needing attention, and future notifications for that user are
+    /// suppressed.
     /// </summary>
     /// <param name="id">The incident's ID.</param>
     [HttpPost("incidents/{id}/except")]
@@ -192,13 +193,13 @@ public class SentinelController : ControllerBase
             return NotFound();
         }
 
-        _incidentRepository.MarkExcepted(incident.Code, incident.UserName, string.Empty);
+        _incidentRepository.MarkExcepted(incident.UserName, string.Empty);
         return Ok();
     }
 
     /// <summary>
-    /// Removes the exception on this incident's (Code, UserName) combination, so it is treated as
-    /// a normal problem again.
+    /// Removes the exception on this incident's user, so that user's incidents are treated as
+    /// normal problems again.
     /// </summary>
     /// <param name="id">The incident's ID.</param>
     [HttpPost("incidents/{id}/unexcept")]
@@ -212,7 +213,7 @@ public class SentinelController : ControllerBase
             return NotFound();
         }
 
-        _incidentRepository.ClearExcepted(incident.Code, incident.UserName);
+        _incidentRepository.ClearExcepted(incident.UserName);
         return Ok();
     }
 
@@ -238,7 +239,13 @@ public class SentinelController : ControllerBase
             "UI_NO_INCIDENTS", "UI_LOAD_INCIDENTS_FAILED",
             "UI_COL_USER", "UI_STATS_TOTAL", "UI_STATS_ACTIVE", "UI_FILTER_ALL", "UI_NO_INCIDENTS_FOR_FILTER",
             "UI_CLICK_FOR_DETAILS", "UI_NOTE_LABEL", "UI_NOTE_PLACEHOLDER", "UI_NOTE_SAVE_BUTTON", "UI_NOTE_SAVED",
-            "UI_MARK_EXCEPTION_BUTTON", "UI_UNMARK_EXCEPTION_BUTTON", "UI_FILTER_EXPECTED", "UI_EXCEPTED_BADGE"
+            "UI_MARK_EXCEPTION_BUTTON", "UI_UNMARK_EXCEPTION_BUTTON", "UI_FILTER_EXPECTED", "UI_EXCEPTED_BADGE",
+            "UI_LANGUAGE_LABEL", "UI_NOTIFICATION_CHANNELS_HEADER", "UI_SAVE_BUTTON", "UI_ENABLE_LABEL",
+            "UI_MIN_SEVERITY_LABEL", "UI_SEND_TEST_BUTTON", "UI_SEVERITY_LOW", "UI_SEVERITY_MEDIUM", "UI_SEVERITY_HIGH",
+            "UI_WEBHOOK_URL_LABEL", "UI_DISCORD_WEBHOOK_URL_LABEL", "UI_TELEGRAM_BOT_TOKEN_LABEL", "UI_TELEGRAM_CHAT_ID_LABEL",
+            "UI_SMTP_HOST_LABEL", "UI_SMTP_PORT_LABEL", "UI_SMTP_USERNAME_LABEL", "UI_SMTP_PASSWORD_LABEL",
+            "UI_EMAIL_FROM_LABEL", "UI_EMAIL_TO_LABEL",
+            "UI_TEST_SAVING", "UI_TEST_SENDING", "UI_TEST_SUCCESS", "UI_TEST_FAILURE_GENERIC", "UI_TEST_FAILURE_PREFIX"
         };
 
         var result = keys.ToDictionary(key => key, key => _localizationService.Translate(key, language));

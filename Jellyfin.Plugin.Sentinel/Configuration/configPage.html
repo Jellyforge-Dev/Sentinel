@@ -13,7 +13,7 @@
                 </div>
                 <form id="SentinelConfigForm">
                     <div class="selectContainer">
-                        <label class="selectLabel" for="SentinelLanguage">Language</label>
+                        <label class="selectLabel" for="SentinelLanguage" id="sentinelLanguageLabel">Language</label>
                         <select is="emby-select" id="SentinelLanguage" name="SentinelLanguage" class="emby-select-withcolor emby-select">
                             <option value="0">English</option>
                             <option value="1">Deutsch</option>
@@ -26,21 +26,21 @@
                     </div>
 
                     <details class="sentinelSettingsDetails">
-                        <summary>Notification Channels</summary>
+                        <summary id="sentinelNotificationChannelsHeader">Notification Channels</summary>
                         <div class="sentinelSettingsBody">
                             <div class="sentinelChannelGrid">
                                 <div class="sentinelChannelCard sentinelChannelWebhook">
                                     <h3>Webhook</h3>
                                     <label class="checkboxContainer">
                                         <input is="emby-checkbox" type="checkbox" id="WebhookEnabled" />
-                                        <span>Enable</span>
+                                        <span class="sentinelEnableLabel">Enable</span>
                                     </label>
                                     <div class="inputContainer">
-                                        <label class="inputLabel inputLabelUnfocused" for="WebhookUrl">Webhook URL</label>
+                                        <label class="inputLabel inputLabelUnfocused" for="WebhookUrl" id="sentinelWebhookUrlLabel">Webhook URL</label>
                                         <input is="emby-input" type="text" id="WebhookUrl" />
                                     </div>
                                     <div class="selectContainer">
-                                        <label class="selectLabel" for="WebhookMinSeverity">Minimum Severity</label>
+                                        <label class="selectLabel sentinelMinSeverityLabel" for="WebhookMinSeverity">Minimum Severity</label>
                                         <select is="emby-select" id="WebhookMinSeverity" class="emby-select-withcolor emby-select">
                                             <option value="low">Low</option>
                                             <option value="medium">Medium</option>
@@ -57,14 +57,14 @@
                                     <h3>Discord</h3>
                                     <label class="checkboxContainer">
                                         <input is="emby-checkbox" type="checkbox" id="DiscordEnabled" />
-                                        <span>Enable</span>
+                                        <span class="sentinelEnableLabel">Enable</span>
                                     </label>
                                     <div class="inputContainer">
-                                        <label class="inputLabel inputLabelUnfocused" for="DiscordWebhookUrl">Discord Webhook URL</label>
+                                        <label class="inputLabel inputLabelUnfocused" for="DiscordWebhookUrl" id="sentinelDiscordWebhookUrlLabel">Discord Webhook URL</label>
                                         <input is="emby-input" type="text" id="DiscordWebhookUrl" />
                                     </div>
                                     <div class="selectContainer">
-                                        <label class="selectLabel" for="DiscordMinSeverity">Minimum Severity</label>
+                                        <label class="selectLabel sentinelMinSeverityLabel" for="DiscordMinSeverity">Minimum Severity</label>
                                         <select is="emby-select" id="DiscordMinSeverity" class="emby-select-withcolor emby-select">
                                             <option value="low">Low</option>
                                             <option value="medium">Medium</option>
@@ -81,18 +81,18 @@
                                     <h3>Telegram</h3>
                                     <label class="checkboxContainer">
                                         <input is="emby-checkbox" type="checkbox" id="TelegramEnabled" />
-                                        <span>Enable</span>
+                                        <span class="sentinelEnableLabel">Enable</span>
                                     </label>
                                     <div class="inputContainer">
-                                        <label class="inputLabel inputLabelUnfocused" for="TelegramBotToken">Bot Token</label>
+                                        <label class="inputLabel inputLabelUnfocused" for="TelegramBotToken" id="sentinelTelegramBotTokenLabel">Bot Token</label>
                                         <input is="emby-input" type="text" id="TelegramBotToken" />
                                     </div>
                                     <div class="inputContainer">
-                                        <label class="inputLabel inputLabelUnfocused" for="TelegramChatId">Chat ID</label>
+                                        <label class="inputLabel inputLabelUnfocused" for="TelegramChatId" id="sentinelTelegramChatIdLabel">Chat ID</label>
                                         <input is="emby-input" type="text" id="TelegramChatId" />
                                     </div>
                                     <div class="selectContainer">
-                                        <label class="selectLabel" for="TelegramMinSeverity">Minimum Severity</label>
+                                        <label class="selectLabel sentinelMinSeverityLabel" for="TelegramMinSeverity">Minimum Severity</label>
                                         <select is="emby-select" id="TelegramMinSeverity" class="emby-select-withcolor emby-select">
                                             <option value="low">Low</option>
                                             <option value="medium">Medium</option>
@@ -109,34 +109,34 @@
                                     <h3>Email</h3>
                                     <label class="checkboxContainer">
                                         <input is="emby-checkbox" type="checkbox" id="EmailEnabled" />
-                                        <span>Enable</span>
+                                        <span class="sentinelEnableLabel">Enable</span>
                                     </label>
                                     <div class="inputContainer">
-                                        <label class="inputLabel inputLabelUnfocused" for="EmailSmtpHost">SMTP Host</label>
+                                        <label class="inputLabel inputLabelUnfocused" for="EmailSmtpHost" id="sentinelEmailSmtpHostLabel">SMTP Host</label>
                                         <input is="emby-input" type="text" id="EmailSmtpHost" />
                                     </div>
                                     <div class="inputContainer">
-                                        <label class="inputLabel inputLabelUnfocused" for="EmailSmtpPort">SMTP Port</label>
+                                        <label class="inputLabel inputLabelUnfocused" for="EmailSmtpPort" id="sentinelEmailSmtpPortLabel">SMTP Port</label>
                                         <input is="emby-input" type="number" id="EmailSmtpPort" />
                                     </div>
                                     <div class="inputContainer">
-                                        <label class="inputLabel inputLabelUnfocused" for="EmailSmtpUsername">SMTP Username</label>
+                                        <label class="inputLabel inputLabelUnfocused" for="EmailSmtpUsername" id="sentinelEmailSmtpUsernameLabel">SMTP Username</label>
                                         <input is="emby-input" type="text" id="EmailSmtpUsername" />
                                     </div>
                                     <div class="inputContainer">
-                                        <label class="inputLabel inputLabelUnfocused" for="EmailSmtpPassword">SMTP Password</label>
+                                        <label class="inputLabel inputLabelUnfocused" for="EmailSmtpPassword" id="sentinelEmailSmtpPasswordLabel">SMTP Password</label>
                                         <input is="emby-input" type="password" id="EmailSmtpPassword" />
                                     </div>
                                     <div class="inputContainer">
-                                        <label class="inputLabel inputLabelUnfocused" for="EmailFromAddress">From Address</label>
+                                        <label class="inputLabel inputLabelUnfocused" for="EmailFromAddress" id="sentinelEmailFromAddressLabel">From Address</label>
                                         <input is="emby-input" type="text" id="EmailFromAddress" />
                                     </div>
                                     <div class="inputContainer">
-                                        <label class="inputLabel inputLabelUnfocused" for="EmailToAddress">To Address</label>
+                                        <label class="inputLabel inputLabelUnfocused" for="EmailToAddress" id="sentinelEmailToAddressLabel">To Address</label>
                                         <input is="emby-input" type="text" id="EmailToAddress" />
                                     </div>
                                     <div class="selectContainer">
-                                        <label class="selectLabel" for="EmailMinSeverity">Minimum Severity</label>
+                                        <label class="selectLabel sentinelMinSeverityLabel" for="EmailMinSeverity">Minimum Severity</label>
                                         <select is="emby-select" id="EmailMinSeverity" class="emby-select-withcolor emby-select">
                                             <option value="low">Low</option>
                                             <option value="medium">Medium</option>
@@ -154,7 +154,7 @@
 
                     <div>
                         <button is="emby-button" type="submit" class="raised button-submit block emby-button">
-                            <span>Save</span>
+                            <span id="sentinelSaveButtonLabel">Save</span>
                         </button>
                     </div>
                 </form>
@@ -476,7 +476,27 @@
                     });
                 }
 
+                // pageshow (see below) can fire more than once for the same DOM without a full
+                // page reload — wiring unconditionally on every pageshow attached a fresh set of
+                // click listeners on top of the old ones each time, so a single click sent as
+                // many test notifications as pageshow had fired. Wired exactly once, ever.
+                var testSendButtonsWired = false;
+
+                function saveCurrentFormState() {
+                    return ApiClient.getPluginConfiguration(SentinelConfig.pluginUniqueId).then(function (config) {
+                        config.Language = parseInt(document.querySelector('#SentinelLanguage').value, 10);
+                        applyNotificationSettings(config);
+                        return ApiClient.updatePluginConfiguration(SentinelConfig.pluginUniqueId, config);
+                    });
+                }
+
                 function wireTestSendButtons() {
+                    if (testSendButtonsWired) {
+                        return;
+                    }
+
+                    testSendButtonsWired = true;
+
                     document.querySelectorAll('[data-sentinel-test-channel]').forEach(function (button) {
                         button.addEventListener('click', function () {
                             var channelName = button.getAttribute('data-sentinel-test-channel');
@@ -484,14 +504,23 @@
 
                             if (resultSpan) {
                                 resultSpan.className = 'sentinelTestResult';
-                                resultSpan.textContent = 'Sending…';
+                                resultSpan.textContent = getUiString('UI_TEST_SAVING');
                             }
 
-                            var url = ApiClient.getUrl('Sentinel/notifications/test/' + encodeURIComponent(channelName));
-                            ApiClient.ajax({ type: 'POST', url: url }).then(function () {
+                            // Test must reflect whatever is currently typed in the form, not the
+                            // last saved config — otherwise a field edited but not yet saved via
+                            // the page's own Save button silently tests the OLD value.
+                            saveCurrentFormState().then(function () {
+                                if (resultSpan) {
+                                    resultSpan.textContent = getUiString('UI_TEST_SENDING');
+                                }
+
+                                var url = ApiClient.getUrl('Sentinel/notifications/test/' + encodeURIComponent(channelName));
+                                return ApiClient.ajax({ type: 'POST', url: url });
+                            }).then(function () {
                                 if (resultSpan) {
                                     resultSpan.className = 'sentinelTestResult sentinelTestSuccess';
-                                    resultSpan.textContent = 'Sent successfully.';
+                                    resultSpan.textContent = getUiString('UI_TEST_SUCCESS');
                                 }
                             }).catch(function (err) {
                                 if (!resultSpan) {
@@ -499,12 +528,12 @@
                                 }
 
                                 resultSpan.className = 'sentinelTestResult sentinelTestFailure';
-                                resultSpan.textContent = 'Failed to send — check the channel is fully configured and the destination is reachable.';
+                                resultSpan.textContent = getUiString('UI_TEST_FAILURE_GENERIC');
 
                                 if (err && typeof err.json === 'function') {
                                     err.json().then(function (body) {
                                         if (body && body.Reason) {
-                                            resultSpan.textContent = 'Failed to send: ' + body.Reason;
+                                            resultSpan.textContent = getUiString('UI_TEST_FAILURE_PREFIX') + ' ' + body.Reason;
                                         }
                                     }).catch(function () { /* body wasn't JSON — keep the generic message */ });
                                 }
@@ -528,6 +557,40 @@
                     if (loadingRow) {
                         loadingRow.textContent = getUiString('UI_LOADING');
                     }
+
+                    document.querySelector('#sentinelLanguageLabel').textContent = getUiString('UI_LANGUAGE_LABEL');
+                    document.querySelector('#sentinelNotificationChannelsHeader').textContent = getUiString('UI_NOTIFICATION_CHANNELS_HEADER');
+                    document.querySelector('#sentinelSaveButtonLabel').textContent = getUiString('UI_SAVE_BUTTON');
+
+                    document.querySelectorAll('.sentinelEnableLabel').forEach(function (el) {
+                        el.textContent = getUiString('UI_ENABLE_LABEL');
+                    });
+                    document.querySelectorAll('.sentinelMinSeverityLabel').forEach(function (el) {
+                        el.textContent = getUiString('UI_MIN_SEVERITY_LABEL');
+                    });
+                    document.querySelectorAll('.sentinelTestButton').forEach(function (el) {
+                        el.textContent = getUiString('UI_SEND_TEST_BUTTON');
+                    });
+                    document.querySelectorAll('select[id$="MinSeverity"] option[value="low"]').forEach(function (el) {
+                        el.textContent = getUiString('UI_SEVERITY_LOW');
+                    });
+                    document.querySelectorAll('select[id$="MinSeverity"] option[value="medium"]').forEach(function (el) {
+                        el.textContent = getUiString('UI_SEVERITY_MEDIUM');
+                    });
+                    document.querySelectorAll('select[id$="MinSeverity"] option[value="high"]').forEach(function (el) {
+                        el.textContent = getUiString('UI_SEVERITY_HIGH');
+                    });
+
+                    document.querySelector('#sentinelWebhookUrlLabel').textContent = getUiString('UI_WEBHOOK_URL_LABEL');
+                    document.querySelector('#sentinelDiscordWebhookUrlLabel').textContent = getUiString('UI_DISCORD_WEBHOOK_URL_LABEL');
+                    document.querySelector('#sentinelTelegramBotTokenLabel').textContent = getUiString('UI_TELEGRAM_BOT_TOKEN_LABEL');
+                    document.querySelector('#sentinelTelegramChatIdLabel').textContent = getUiString('UI_TELEGRAM_CHAT_ID_LABEL');
+                    document.querySelector('#sentinelEmailSmtpHostLabel').textContent = getUiString('UI_SMTP_HOST_LABEL');
+                    document.querySelector('#sentinelEmailSmtpPortLabel').textContent = getUiString('UI_SMTP_PORT_LABEL');
+                    document.querySelector('#sentinelEmailSmtpUsernameLabel').textContent = getUiString('UI_SMTP_USERNAME_LABEL');
+                    document.querySelector('#sentinelEmailSmtpPasswordLabel').textContent = getUiString('UI_SMTP_PASSWORD_LABEL');
+                    document.querySelector('#sentinelEmailFromAddressLabel').textContent = getUiString('UI_EMAIL_FROM_LABEL');
+                    document.querySelector('#sentinelEmailToAddressLabel').textContent = getUiString('UI_EMAIL_TO_LABEL');
                 }
 
                 function loadUiStrings() {

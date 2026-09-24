@@ -79,6 +79,21 @@ public class PlaybackCollectorHostedServiceTests : IDisposable
         return (long)command.ExecuteScalar()!;
     }
 
+    private long CountDiagnosesForItem(string code, string itemId)
+    {
+        using var connection = _database.OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            SELECT COUNT(*) FROM Diagnosis d
+            JOIN PlaybackEvent p ON p.Id = d.PlaybackEventId
+            WHERE d.Code = $code AND p.ItemId = $itemId;
+            """;
+        command.Parameters.AddWithValue("$code", code);
+        command.Parameters.AddWithValue("$itemId", itemId);
+        return (long)command.ExecuteScalar()!;
+    }
+
     [Fact]
     public async Task OnPlaybackStopped_UsesProgressSnapshot_WhenSessionStateWasClearedBeforeStopFired()
     {
@@ -236,9 +251,13 @@ public class PlaybackCollectorHostedServiceTests : IDisposable
 
         await service.StopAsync(CancellationToken.None);
 
-        // Zero, not one: the second stop must not have inherited the first (still-uncompleted)
-        // playback's cached transcode data just because it shares a device with it.
-        Assert.Equal(0, CountDiagnoses("VIDEO_CODEC_UNSUPPORTED"));
+        // The first playback's own PlaybackProgress now legitimately produces a live diagnosis
+        // for ITS item (see PlaybackCollectorHostedService's live-detection remarks) — that one
+        // diagnosis existing is correct and expected. What this test actually guards against is
+        // the second, unrelated stop inheriting that cached data: it must never be attributed to
+        // secondItem just because it shares a device with the first, still-uncompleted playback.
+        Assert.Equal(1, CountDiagnosesForItem("VIDEO_CODEC_UNSUPPORTED", firstItem.Id.ToString()));
+        Assert.Equal(0, CountDiagnosesForItem("VIDEO_CODEC_UNSUPPORTED", secondItem.Id.ToString()));
     }
 
     [Fact]
@@ -402,9 +421,13 @@ public class PlaybackCollectorHostedServiceTests : IDisposable
 
         await service.StopAsync(CancellationToken.None);
 
-        // If the TTL sweep had NOT run, the original snapshot would still be present and this
-        // would incorrectly still be 1.
-        Assert.Equal(0, CountDiagnoses("VIDEO_CODEC_UNSUPPORTED"));
+        // The PlaybackProgress above now legitimately live-diagnoses this session immediately
+        // (see PlaybackCollectorHostedService's live-detection remarks), so exactly one diagnosis
+        // is correct and expected. What this asserts is that it stays at exactly one: if the TTL
+        // sweep had NOT evicted the stale snapshot, the stop handler could have re-attributed it
+        // and produced a second, duplicate diagnosis instead of correctly finding no further
+        // transcode data once the session's own fields were cleared.
+        Assert.Equal(1, CountDiagnoses("VIDEO_CODEC_UNSUPPORTED"));
     }
 
     [Fact]
@@ -468,6 +491,90 @@ public class PlaybackCollectorHostedServiceTests : IDisposable
 
         var incident = Assert.Single(matching);
         Assert.Equal(2, incident.OccurrenceCount);
+    }
+
+    [Fact]
+    public async Task OnPlaybackProgress_DiagnosesLive_WhileThePlaybackIsStillOngoing()
+    {
+        // The headline behavior a live-server admin actually asked for: a transcode must be
+        // detected (and an Incident created) while playback is still running, not only after the
+        // user stops it.
+        var sessionManagerMock = new Mock<ISessionManager>();
+        var incidentRepository = new IncidentRepository(_database);
+        var service = CreateService(sessionManagerMock);
+
+        await service.StartAsync(CancellationToken.None);
+
+        var item = new Movie { Id = Guid.NewGuid() };
+        var session = new SessionInfo(sessionManagerMock.Object, NullLogger.Instance)
+        {
+            Id = "session-live",
+            Client = "Fire TV",
+            DeviceName = "Living Room TV",
+            PlayState = new PlayerStateInfo { PlayMethod = PlayMethod.Transcode },
+            TranscodingInfo = new TranscodingInfo
+            {
+                TranscodeReasons = TranscodeReason.VideoCodecNotSupported
+            }
+        };
+
+        sessionManagerMock.Raise(
+            m => m.PlaybackProgress += null,
+            sessionManagerMock.Object,
+            new PlaybackProgressEventArgs { Session = session, Item = item, PlaySessionId = "play-session-live" });
+
+        // Deliberately never firing PlaybackStopped — the playback is still ongoing.
+        await service.StopAsync(CancellationToken.None);
+
+        Assert.Equal(1, CountDiagnoses("VIDEO_CODEC_UNSUPPORTED"));
+
+        var incident = Assert.Single(incidentRepository.GetRecent(50));
+        Assert.Equal("VIDEO_CODEC_UNSUPPORTED", incident.Code);
+        Assert.Equal(1, incident.OccurrenceCount);
+    }
+
+    [Fact]
+    public async Task OnPlaybackStopped_DoesNotDuplicateDiagnosis_ForCodeAlreadyRecordedLive()
+    {
+        // If the condition that was already live-diagnosed during PlaybackProgress is still true
+        // when PlaybackStopped fires (the transcode never stopped needing that reason), the stop
+        // handler must skip it rather than diagnosing — and dispatching a notification for — the
+        // exact same condition a second time.
+        var sessionManagerMock = new Mock<ISessionManager>();
+        var service = CreateService(sessionManagerMock);
+
+        await service.StartAsync(CancellationToken.None);
+
+        var item = new Movie { Id = Guid.NewGuid() };
+        var session = new SessionInfo(sessionManagerMock.Object, NullLogger.Instance)
+        {
+            Id = "session-live-then-stop",
+            Client = "Fire TV",
+            DeviceName = "Living Room TV",
+            PlayState = new PlayerStateInfo { PlayMethod = PlayMethod.Transcode },
+            TranscodingInfo = new TranscodingInfo
+            {
+                TranscodeReasons = TranscodeReason.VideoCodecNotSupported
+            }
+        };
+
+        sessionManagerMock.Raise(
+            m => m.PlaybackProgress += null,
+            sessionManagerMock.Object,
+            new PlaybackProgressEventArgs { Session = session, Item = item, PlaySessionId = "play-session-live-then-stop" });
+
+        // Unlike the real Jellyfin RemoveNowPlayingItem sequence, the session fields are left
+        // exactly as they were — simulating a stop report that (unusually) still carries the same
+        // transcode data, the scenario most likely to double-diagnose without the live-recorded
+        // skip guard.
+        sessionManagerMock.Raise(
+            m => m.PlaybackStopped += null,
+            sessionManagerMock.Object,
+            new PlaybackStopEventArgs { Session = session, Item = item, PlaySessionId = "play-session-live-then-stop" });
+
+        await service.StopAsync(CancellationToken.None);
+
+        Assert.Equal(1, CountDiagnoses("VIDEO_CODEC_UNSUPPORTED"));
     }
 
     public void Dispose()

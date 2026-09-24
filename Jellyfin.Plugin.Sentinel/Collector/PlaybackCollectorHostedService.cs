@@ -57,6 +57,27 @@ namespace Jellyfin.Plugin.Sentinel.Collector;
 /// it lets a stop event with no <c>PlaySessionId</c> fall back to the most recent play session
 /// observed for that device-scoped <c>Session.Id</c>.
 /// </para>
+/// <para>
+/// <see cref="OnPlaybackProgress"/> also diagnoses, not just caches, so a transcode is detected
+/// (and notified) while playback is still ongoing rather than only after it stops — this is the
+/// whole reason the class subscribes to <c>PlaybackProgress</c> at all beyond caching.
+/// <see cref="PlaybackEventFactory.FromEventArgs"/> accepts the base <c>PlaybackProgressEventArgs</c>
+/// (verified against real Jellyfin source: <c>PlaybackStopEventArgs : PlaybackProgressEventArgs</c>),
+/// so the exact same factory and rule engine run in both handlers. <c>_liveRecordedDiagnosisCodes</c>
+/// tracks, per play session, which diagnosis codes have already been recorded live — required
+/// because a progress tick fires roughly once a second for the whole duration of a transcode, and
+/// without this guard every tick would insert a fresh PlaybackEvent/Diagnosis row and re-attempt a
+/// notification for a condition that hasn't changed. <see cref="OnPlaybackStopped"/> still runs its
+/// own diagnosis pass afterward (a reason might only become detectable right at the end, or the
+/// live pass might have been missed entirely if Sentinel started mid-playback) but skips any code
+/// already recorded live for that play session, so the same condition is never diagnosed twice.
+/// Diagnosing inline on <see cref="OnPlaybackProgress"/>'s calling thread (see above — unlike
+/// <c>PlaybackStopped</c>, Jellyfin does not queue this onto a background thread) is an accepted,
+/// deliberate cost: it only performs the local SQLite writes below when a play session's diagnosis
+/// set actually changes, not on every tick, and notification delivery itself is always dispatched
+/// fire-and-forget so a slow or unreachable notification endpoint can never add latency to a
+/// client's progress report.
+/// </para>
 /// </remarks>
 public sealed partial class PlaybackCollectorHostedService : IHostedService
 {
@@ -78,6 +99,12 @@ public sealed partial class PlaybackCollectorHostedService : IHostedService
     // simply overwritten by that device's next playback — it never accumulates one entry per
     // playback the way a PlaySessionId-keyed cache would.
     private readonly ConcurrentDictionary<string, string> _lastKnownPlaySessionIdBySessionId = new();
+
+    // Per-play-session set of diagnosis codes already recorded during the live (PlaybackProgress)
+    // phase — see the class remarks. Removed once the play session stops, mirroring
+    // _lastKnownPlaybackState's own remove-on-stop lifecycle, so this never accumulates entries
+    // for sessions that have already ended.
+    private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, byte>> _liveRecordedDiagnosisCodes = new();
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PlaybackCollectorHostedService"/> class.
@@ -138,6 +165,7 @@ public sealed partial class PlaybackCollectorHostedService : IHostedService
         // Don't hold cached playback state across a stop/start cycle of this service.
         _lastKnownPlaybackState.Clear();
         _lastKnownPlaySessionIdBySessionId.Clear();
+        _liveRecordedDiagnosisCodes.Clear();
         return Task.CompletedTask;
     }
 
@@ -166,7 +194,7 @@ public sealed partial class PlaybackCollectorHostedService : IHostedService
             var observedReasons = transcodingInfo?.TranscodeReasons;
             var now = _timeProvider.GetTimestamp();
 
-            _lastKnownPlaybackState.AddOrUpdate(
+            var updatedSnapshot = _lastKnownPlaybackState.AddOrUpdate(
                 playSessionId,
                 _ => new PlaybackProgressSnapshot
                 {
@@ -186,6 +214,8 @@ public sealed partial class PlaybackCollectorHostedService : IHostedService
                     AudioCodec = transcodingInfo?.AudioCodec ?? previous.AudioCodec,
                     CapturedAtTimestamp = now
                 });
+
+            DiagnoseLive(args, playSessionId, updatedSnapshot);
 
             EvictStaleSnapshots(now);
         }
@@ -243,17 +273,22 @@ public sealed partial class PlaybackCollectorHostedService : IHostedService
             var playbackEventId = _playbackEventRepository.Insert(playbackEvent);
             var diagnoses = _ruleEngine.Diagnose(playbackEvent);
 
+            // Codes already recorded live during PlaybackProgress (see class remarks) must not be
+            // diagnosed again here — removed, not just read, since this play session is ending.
+            ConcurrentDictionary<string, byte>? liveRecordedCodes = null;
+            if (!string.IsNullOrEmpty(playSessionId))
+            {
+                _liveRecordedDiagnosisCodes.TryRemove(playSessionId, out liveRecordedCodes);
+            }
+
             foreach (var diagnosis in diagnoses)
             {
-                var diagnosisId = _diagnosisRepository.Insert(playbackEventId, diagnosis);
-                var isExcepted = _incidentRepository.IsExcepted(diagnosis.Code, playbackEvent.UserName);
-                var upsertResult = _incidentRepository.UpsertOnDiagnosis(diagnosisId, diagnosis.Code, playbackEvent.ItemId, playbackEvent.Client, playbackEvent.DeviceName, playbackEvent.UserName, isExcepted);
-                if (upsertResult.IsNewOrReopened && !upsertResult.IsExcepted)
+                if (liveRecordedCodes is not null && liveRecordedCodes.ContainsKey(diagnosis.Code))
                 {
-                    _ = DispatchNotificationSafelyAsync(diagnosis, playbackEvent);
+                    continue;
                 }
 
-                LogDiagnosis(_logger, diagnosis.Code, diagnosis.Confidence, playbackEvent.SessionId);
+                RecordDiagnosis(playbackEventId, diagnosis, playbackEvent);
             }
         }
 #pragma warning disable CA1031
@@ -262,6 +297,54 @@ public sealed partial class PlaybackCollectorHostedService : IHostedService
             LogPlaybackStoppedHandlerFailed(_logger, ex);
         }
 #pragma warning restore CA1031
+    }
+
+    /// <summary>
+    /// Diagnoses the play session's current live state (see class remarks) and records any
+    /// diagnosis code not already recorded for this play session — never re-recorded on a later
+    /// tick as long as the same code keeps being detected.
+    /// </summary>
+    private void DiagnoseLive(PlaybackProgressEventArgs args, string playSessionId, PlaybackProgressSnapshot snapshot)
+    {
+        var liveEvent = PlaybackEventFactory.FromEventArgs(args, snapshot);
+        if (liveEvent is null)
+        {
+            return;
+        }
+
+        var liveDiagnoses = _ruleEngine.Diagnose(liveEvent);
+        if (liveDiagnoses.Count == 0)
+        {
+            return;
+        }
+
+        var recordedCodes = _liveRecordedDiagnosisCodes.GetOrAdd(playSessionId, static _ => new ConcurrentDictionary<string, byte>());
+
+        foreach (var diagnosis in liveDiagnoses)
+        {
+            // TryAdd both claims this code (so a concurrent tick for the same session never
+            // double-records it) and tells us whether it's genuinely new.
+            if (!recordedCodes.TryAdd(diagnosis.Code, 0))
+            {
+                continue;
+            }
+
+            var playbackEventId = _playbackEventRepository.Insert(liveEvent);
+            RecordDiagnosis(playbackEventId, diagnosis, liveEvent);
+        }
+    }
+
+    private void RecordDiagnosis(long playbackEventId, Diagnosis diagnosis, PlaybackEvent playbackEvent)
+    {
+        var diagnosisId = _diagnosisRepository.Insert(playbackEventId, diagnosis);
+        var isExcepted = _incidentRepository.IsExcepted(playbackEvent.UserName);
+        var upsertResult = _incidentRepository.UpsertOnDiagnosis(diagnosisId, diagnosis.Code, playbackEvent.ItemId, playbackEvent.Client, playbackEvent.DeviceName, playbackEvent.UserName, isExcepted);
+        if (upsertResult.IsNewOrReopened && !upsertResult.IsExcepted)
+        {
+            _ = DispatchNotificationSafelyAsync(diagnosis, playbackEvent);
+        }
+
+        LogDiagnosis(_logger, diagnosis.Code, diagnosis.Confidence, playbackEvent.SessionId);
     }
 
     private async Task DispatchNotificationSafelyAsync(Diagnosis diagnosis, PlaybackEvent playbackEvent)

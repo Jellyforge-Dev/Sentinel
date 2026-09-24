@@ -193,18 +193,17 @@ public sealed class IncidentRepository
     }
 
     /// <summary>
-    /// Checks whether (code, userName) currently matches an admin-created exception, for the
-    /// collector to pass into <see cref="UpsertOnDiagnosis"/>.
+    /// Checks whether userName currently matches an admin-created exception, for the collector to
+    /// pass into <see cref="UpsertOnDiagnosis"/>. Scoped to the user alone (not a specific rule
+    /// code) — see <see cref="MarkExcepted"/>'s remarks for why.
     /// </summary>
-    /// <param name="code">The diagnostic rule code.</param>
     /// <param name="userName">The Jellyfin username.</param>
-    /// <returns>True if this combination is currently marked as an accepted exception.</returns>
-    public bool IsExcepted(string code, string userName)
+    /// <returns>True if this user is currently marked as an accepted exception.</returns>
+    public bool IsExcepted(string userName)
     {
         using var connection = _database.OpenConnection();
         using var command = connection.CreateCommand();
-        command.CommandText = "SELECT COUNT(*) FROM IncidentException WHERE Code = $code AND UserName = $userName;";
-        command.Parameters.AddWithValue("$code", code);
+        command.CommandText = "SELECT COUNT(*) FROM IncidentException WHERE UserName = $userName;";
         command.Parameters.AddWithValue("$userName", userName);
         return (long)command.ExecuteScalar()! > 0;
     }
@@ -226,15 +225,19 @@ public sealed class IncidentRepository
     }
 
     /// <summary>
-    /// Records (code, userName) as an accepted exception — e.g. a user who intentionally always
-    /// transcodes via a GPU — and immediately marks every currently-open Incident row sharing that
-    /// (code, userName) as excepted, so the dashboard stops treating them as problems needing
-    /// attention without waiting for the fingerprint to recur.
+    /// Records userName as an accepted exception — e.g. a user who intentionally always
+    /// transcodes via a GPU — and immediately marks every currently-open Incident row for that
+    /// user (any rule code, any media item) as excepted, so the dashboard stops treating them as
+    /// problems needing attention. Deliberately scoped to the user alone, not a specific rule
+    /// code: real-world feedback showed a single user's transcoding routinely trips several
+    /// different diagnosis codes across different titles (e.g. one video triggers an HDR
+    /// tone-mapping diagnosis, another a bitrate-cap diagnosis), and a code-scoped exception left
+    /// every one of those feeling like a separate, per-title problem to re-except instead of one
+    /// blanket "this user is fine" decision.
     /// </summary>
-    /// <param name="code">The diagnostic rule code.</param>
     /// <param name="userName">The Jellyfin username.</param>
     /// <param name="reason">An optional free-text reason, for the admin's own reference.</param>
-    public void MarkExcepted(string code, string userName, string reason)
+    public void MarkExcepted(string userName, string reason)
     {
         using var connection = _database.OpenConnection();
         using var transaction = connection.BeginTransaction();
@@ -244,11 +247,10 @@ public sealed class IncidentRepository
             upsertCommand.Transaction = transaction;
             upsertCommand.CommandText =
                 """
-                INSERT INTO IncidentException (Code, UserName, Reason, CreatedAtUtc)
-                VALUES ($code, $userName, $reason, $now)
-                ON CONFLICT (Code, UserName) DO UPDATE SET Reason = excluded.Reason;
+                INSERT INTO IncidentException (UserName, Reason, CreatedAtUtc)
+                VALUES ($userName, $reason, $now)
+                ON CONFLICT (UserName) DO UPDATE SET Reason = excluded.Reason;
                 """;
-            upsertCommand.Parameters.AddWithValue("$code", code);
             upsertCommand.Parameters.AddWithValue("$userName", userName);
             upsertCommand.Parameters.AddWithValue("$reason", reason);
             upsertCommand.Parameters.AddWithValue("$now", DateTime.UtcNow.ToString("O"));
@@ -258,8 +260,7 @@ public sealed class IncidentRepository
         using (var markCommand = connection.CreateCommand())
         {
             markCommand.Transaction = transaction;
-            markCommand.CommandText = "UPDATE Incident SET IsExcepted = 1 WHERE Code = $code AND UserName = $userName;";
-            markCommand.Parameters.AddWithValue("$code", code);
+            markCommand.CommandText = "UPDATE Incident SET IsExcepted = 1 WHERE UserName = $userName;";
             markCommand.Parameters.AddWithValue("$userName", userName);
             markCommand.ExecuteNonQuery();
         }
@@ -268,13 +269,12 @@ public sealed class IncidentRepository
     }
 
     /// <summary>
-    /// Removes (code, userName) as an accepted exception and clears the excepted flag on every
-    /// currently matching Incident row, so future and existing occurrences are treated as problems
-    /// again.
+    /// Removes userName as an accepted exception and clears the excepted flag on every currently
+    /// matching Incident row, so future and existing occurrences for that user are treated as
+    /// problems again.
     /// </summary>
-    /// <param name="code">The diagnostic rule code.</param>
     /// <param name="userName">The Jellyfin username.</param>
-    public void ClearExcepted(string code, string userName)
+    public void ClearExcepted(string userName)
     {
         using var connection = _database.OpenConnection();
         using var transaction = connection.BeginTransaction();
@@ -282,8 +282,7 @@ public sealed class IncidentRepository
         using (var deleteCommand = connection.CreateCommand())
         {
             deleteCommand.Transaction = transaction;
-            deleteCommand.CommandText = "DELETE FROM IncidentException WHERE Code = $code AND UserName = $userName;";
-            deleteCommand.Parameters.AddWithValue("$code", code);
+            deleteCommand.CommandText = "DELETE FROM IncidentException WHERE UserName = $userName;";
             deleteCommand.Parameters.AddWithValue("$userName", userName);
             deleteCommand.ExecuteNonQuery();
         }
@@ -291,8 +290,7 @@ public sealed class IncidentRepository
         using (var clearCommand = connection.CreateCommand())
         {
             clearCommand.Transaction = transaction;
-            clearCommand.CommandText = "UPDATE Incident SET IsExcepted = 0 WHERE Code = $code AND UserName = $userName;";
-            clearCommand.Parameters.AddWithValue("$code", code);
+            clearCommand.CommandText = "UPDATE Incident SET IsExcepted = 0 WHERE UserName = $userName;";
             clearCommand.Parameters.AddWithValue("$userName", userName);
             clearCommand.ExecuteNonQuery();
         }
