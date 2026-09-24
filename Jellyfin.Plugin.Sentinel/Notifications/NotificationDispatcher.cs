@@ -74,11 +74,12 @@ public sealed partial class NotificationDispatcher
 
             var severity = NotificationSeverityMapper.FromConfidence(diagnosis.Confidence);
             var explanation = _localizationService.Translate($"{diagnosis.Code}_EXPLANATION", config.Language);
+            var recommendation = _localizationService.Translate($"{diagnosis.Code}_RECOMMENDATION", config.Language);
 
             var message = new NotificationMessage
             {
                 Title = $"Sentinel: {diagnosis.Code}",
-                Body = BuildBody(explanation, playbackEvent),
+                Body = BuildBody(explanation, recommendation, playbackEvent),
                 Severity = severity,
 
                 // A real deep link back to the dashboard needs Jellyfin's server base-URL API,
@@ -177,9 +178,15 @@ public sealed partial class NotificationDispatcher
         return new NotificationTestResult(success, success ? null : channel.LastFailureReason);
     }
 
-    private static string BuildBody(string explanation, PlaybackEvent playbackEvent)
+    private static string BuildBody(string explanation, string recommendation, PlaybackEvent playbackEvent)
     {
-        var body = explanation + "\n\nClient: " + playbackEvent.Client + " / " + playbackEvent.DeviceName;
+        var body = explanation;
+        if (!string.IsNullOrEmpty(recommendation))
+        {
+            body += "\n\n" + recommendation;
+        }
+
+        body += "\n\nClient: " + playbackEvent.Client + " / " + playbackEvent.DeviceName;
         if (!string.IsNullOrEmpty(playbackEvent.UserName))
         {
             body += "\nUser: " + playbackEvent.UserName;

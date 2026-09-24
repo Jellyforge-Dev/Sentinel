@@ -112,11 +112,9 @@ public sealed class SentinelDatabase
             );
 
             CREATE TABLE IF NOT EXISTS IncidentException (
-                Code TEXT NOT NULL,
-                UserName TEXT NOT NULL,
+                UserName TEXT NOT NULL PRIMARY KEY,
                 Reason TEXT NOT NULL DEFAULT '',
-                CreatedAtUtc TEXT NOT NULL,
-                PRIMARY KEY (Code, UserName)
+                CreatedAtUtc TEXT NOT NULL
             );
             """;
         command.ExecuteNonQuery();
@@ -128,6 +126,73 @@ public sealed class SentinelDatabase
         AddColumnIfMissing(connection, "Incident", "UserName", "UserName TEXT NOT NULL DEFAULT ''");
         AddColumnIfMissing(connection, "Incident", "ResolutionNote", "ResolutionNote TEXT NOT NULL DEFAULT ''");
         AddColumnIfMissing(connection, "Incident", "IsExcepted", "IsExcepted INTEGER NOT NULL DEFAULT 0");
+        MigrateIncidentExceptionToUserScoped(connection);
+    }
+
+    // v0.1.6.1 shipped IncidentException keyed by (Code, UserName) — feedback from the first
+    // real live-server test showed this felt "per movie/show" rather than a real, general
+    // exception, since a single user's transcoding can trip several different rule codes across
+    // different titles. Broadened here to a single UserName-scoped exception, matching the actual
+    // real-world use case ("this user always transcodes via a GPU — never treat that as a
+    // problem"). This migration preserves every user who was ever marked excepted under the old
+    // shape (deduplicated, keeping the earliest CreatedAtUtc) rather than silently discarding
+    // them, even though the feature had shipped only one release earlier.
+    private static void MigrateIncidentExceptionToUserScoped(SqliteConnection connection)
+    {
+        using (var checkCommand = connection.CreateCommand())
+        {
+            checkCommand.CommandText = "SELECT COUNT(*) FROM pragma_table_info('IncidentException') WHERE name = 'Code';";
+            var hasOldCodeColumn = (long)checkCommand.ExecuteScalar()! > 0;
+            if (!hasOldCodeColumn)
+            {
+                return;
+            }
+        }
+
+        using var transaction = connection.BeginTransaction();
+
+        using (var renameCommand = connection.CreateCommand())
+        {
+            renameCommand.Transaction = transaction;
+            renameCommand.CommandText = "ALTER TABLE IncidentException RENAME TO IncidentException_v1;";
+            renameCommand.ExecuteNonQuery();
+        }
+
+        using (var createCommand = connection.CreateCommand())
+        {
+            createCommand.Transaction = transaction;
+            createCommand.CommandText =
+                """
+                CREATE TABLE IncidentException (
+                    UserName TEXT NOT NULL PRIMARY KEY,
+                    Reason TEXT NOT NULL DEFAULT '',
+                    CreatedAtUtc TEXT NOT NULL
+                );
+                """;
+            createCommand.ExecuteNonQuery();
+        }
+
+        using (var copyCommand = connection.CreateCommand())
+        {
+            copyCommand.Transaction = transaction;
+            copyCommand.CommandText =
+                """
+                INSERT INTO IncidentException (UserName, Reason, CreatedAtUtc)
+                SELECT UserName, MAX(Reason), MIN(CreatedAtUtc)
+                FROM IncidentException_v1
+                GROUP BY UserName;
+                """;
+            copyCommand.ExecuteNonQuery();
+        }
+
+        using (var dropCommand = connection.CreateCommand())
+        {
+            dropCommand.Transaction = transaction;
+            dropCommand.CommandText = "DROP TABLE IncidentException_v1;";
+            dropCommand.ExecuteNonQuery();
+        }
+
+        transaction.Commit();
     }
 
     // CA2100 flags the interpolated CommandText below because SQLite has no parameter syntax for

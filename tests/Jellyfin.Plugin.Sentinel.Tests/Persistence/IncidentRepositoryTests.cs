@@ -161,18 +161,42 @@ public class IncidentRepositoryTests : IDisposable
     [Fact]
     public void IsExcepted_ReturnsFalse_WhenNoMatchingExceptionExists()
     {
-        Assert.False(_incidentRepository.IsExcepted("BUFFERING", "Alice"));
+        Assert.False(_incidentRepository.IsExcepted("Alice"));
     }
 
     [Fact]
-    public void MarkExcepted_MakesIsExceptedTrue_ForMatchingCodeAndUser_ButNotForOtherUsers()
+    public void MarkExcepted_MakesIsExceptedTrue_ForUser_ButNotForOtherUsers()
     {
-        Assert.False(_incidentRepository.IsExcepted("BUFFERING", "Alice"));
+        Assert.False(_incidentRepository.IsExcepted("Alice"));
 
-        _incidentRepository.MarkExcepted("BUFFERING", "Alice", "Uses a GPU for transcoding intentionally.");
+        _incidentRepository.MarkExcepted("Alice", "Uses a GPU for transcoding intentionally.");
 
-        Assert.True(_incidentRepository.IsExcepted("BUFFERING", "Alice"));
-        Assert.False(_incidentRepository.IsExcepted("BUFFERING", "Bob"));
+        Assert.True(_incidentRepository.IsExcepted("Alice"));
+        Assert.False(_incidentRepository.IsExcepted("Bob"));
+    }
+
+    [Fact]
+    public void MarkExcepted_CoversEveryRuleCode_ForThatUser_NotJustTheOneItWasMarkedFrom()
+    {
+        // The whole point of scoping by user alone rather than (code, user): a user who
+        // intentionally transcodes trips different rule codes on different titles, and marking
+        // one exception must cover all of them, not just the code it happened to be raised for.
+        Assert.False(_incidentRepository.IsExcepted("Alice"));
+
+        _incidentRepository.MarkExcepted("Alice", string.Empty);
+
+        var firstItemId = Guid.NewGuid().ToString();
+        var firstDiagnosisId = InsertDiagnosis("AUDIO_CHANNEL_DOWNMIX", "session-a", "Fire TV", "Living Room", firstItemId);
+        var isExceptedForFirstCode = _incidentRepository.IsExcepted("Alice");
+        var firstResult = _incidentRepository.UpsertOnDiagnosis(firstDiagnosisId, "AUDIO_CHANNEL_DOWNMIX", firstItemId, "Fire TV", "Living Room", "Alice", isExceptedForFirstCode);
+
+        var secondItemId = Guid.NewGuid().ToString();
+        var secondDiagnosisId = InsertDiagnosis("HDR_TONE_MAPPING_TRANSCODE", "session-b", "Fire TV", "Living Room", secondItemId);
+        var isExceptedForSecondCode = _incidentRepository.IsExcepted("Alice");
+        var secondResult = _incidentRepository.UpsertOnDiagnosis(secondDiagnosisId, "HDR_TONE_MAPPING_TRANSCODE", secondItemId, "Fire TV", "Living Room", "Alice", isExceptedForSecondCode);
+
+        Assert.True(firstResult.IsExcepted);
+        Assert.True(secondResult.IsExcepted);
     }
 
     [Fact]
@@ -182,7 +206,7 @@ public class IncidentRepositoryTests : IDisposable
         var diagnosisId = InsertDiagnosis("BUFFERING", "session-a", "Fire TV", "Living Room", itemId);
         _incidentRepository.UpsertOnDiagnosis(diagnosisId, "BUFFERING", itemId, "Fire TV", "Living Room", "Alice", false);
 
-        _incidentRepository.MarkExcepted("BUFFERING", "Alice", string.Empty);
+        _incidentRepository.MarkExcepted("Alice", string.Empty);
 
         var recent = _incidentRepository.GetRecent(50);
 
@@ -206,11 +230,11 @@ public class IncidentRepositoryTests : IDisposable
         var itemId = Guid.NewGuid().ToString();
         var diagnosisId = InsertDiagnosis("BUFFERING", "session-a", "Fire TV", "Living Room", itemId);
         _incidentRepository.UpsertOnDiagnosis(diagnosisId, "BUFFERING", itemId, "Fire TV", "Living Room", "Alice", false);
-        _incidentRepository.MarkExcepted("BUFFERING", "Alice", string.Empty);
+        _incidentRepository.MarkExcepted("Alice", string.Empty);
 
-        _incidentRepository.ClearExcepted("BUFFERING", "Alice");
+        _incidentRepository.ClearExcepted("Alice");
 
-        Assert.False(_incidentRepository.IsExcepted("BUFFERING", "Alice"));
+        Assert.False(_incidentRepository.IsExcepted("Alice"));
         Assert.False(_incidentRepository.GetRecent(50)[0].IsExcepted);
     }
 

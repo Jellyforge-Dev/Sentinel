@@ -11,10 +11,11 @@ namespace Jellyfin.Plugin.Sentinel.Diagnostics;
 public static class PlaybackEventFactory
 {
     /// <summary>
-    /// Builds a <see cref="PlaybackEvent"/> from a stopped-playback event, or null if the
-    /// event doesn't carry enough information to diagnose (no session or no item).
+    /// Builds a <see cref="PlaybackEvent"/> from a playback-progress or playback-stopped event
+    /// (the latter is a subtype of the former in Jellyfin's own model, so this accepts either), or
+    /// null if the event doesn't carry enough information to diagnose (no session or no item).
     /// </summary>
-    /// <param name="args">The stopped-playback event args from Jellyfin.</param>
+    /// <param name="args">The playback-progress or playback-stopped event args from Jellyfin.</param>
     /// <param name="progressSnapshot">
     /// The most recent play-method/transcode-reason data for this play session — resolved by the
     /// caller (<c>PlaybackCollectorHostedService</c>) from a cache built out of
@@ -63,7 +64,7 @@ public static class PlaybackEventFactory
     /// <c>PlayMethod</c> value itself.
     /// </para>
     /// </remarks>
-    public static PlaybackEvent? FromEventArgs(PlaybackStopEventArgs args, PlaybackProgressSnapshot? progressSnapshot)
+    public static PlaybackEvent? FromEventArgs(PlaybackProgressEventArgs args, PlaybackProgressSnapshot? progressSnapshot)
     {
         ArgumentNullException.ThrowIfNull(args);
 
