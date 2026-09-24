@@ -76,7 +76,8 @@ public class NotificationDispatcherTests
 
         var result = await dispatcher.SendTestNotificationAsync("webhook", CancellationToken.None);
 
-        Assert.False(result);
+        Assert.False(result.Success);
+        Assert.NotNull(result.Reason);
     }
 
     [Fact]

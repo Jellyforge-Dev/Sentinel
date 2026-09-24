@@ -291,16 +291,41 @@
                     .sentinelStatusBadge.sentinelStatusAcknowledged { background: #e0a030; }
                     .sentinelStatusBadge.sentinelStatusResolved { background: #4caf50; }
                     .sentinelStatusBadge.sentinelStatusReopened { background: #e05252; }
+                    .sentinelStatusBadge.sentinelExceptedBadge { background: rgba(127, 127, 127, 0.4); }
                     .sentinelIncidentMedia { font-weight: 600; }
                     .sentinelIncidentOccurrences { opacity: 0.8; font-size: 0.9em; }
                     .sentinelIncidentMeta { opacity: 0.7; font-size: 0.85em; margin-top: 0.35em; }
-                    .sentinelIncidentActions { margin-top: 0.6em; display: flex; gap: 0.5em; }
+                    .sentinelIncidentActions { margin-top: 0.6em; display: flex; gap: 0.5em; flex-wrap: wrap; }
                     .sentinelIncidentDetail {
                         margin-top: 0.75em;
                         padding-top: 0.6em;
                         border-top: 1px solid var(--sentinel-border);
                     }
                     .sentinelIncidentPlaceholder { opacity: 0.7; padding: 1em 0; }
+                    .sentinelIncidentCard.sentinelExcepted { opacity: 0.75; }
+                    .sentinelExpandHint {
+                        opacity: 0.55;
+                        font-size: 0.8em;
+                        white-space: nowrap;
+                        margin-left: auto;
+                    }
+                    .sentinelExpandChevron { display: inline-block; transition: transform 0.15s ease; }
+                    .sentinelIncidentCard.sentinelExpanded .sentinelExpandChevron { transform: rotate(90deg); }
+                    .sentinelNoteBlock { margin-top: 0.75em; }
+                    .sentinelNoteInput {
+                        width: 100%;
+                        min-height: 4.5em;
+                        box-sizing: border-box;
+                        background: var(--sentinel-surface);
+                        color: inherit;
+                        border: 1px solid var(--sentinel-border);
+                        border-radius: var(--sentinel-radius);
+                        padding: 0.5em 0.75em;
+                        font-family: inherit;
+                        font-size: 0.9em;
+                        resize: vertical;
+                    }
+                    .sentinelNoteFooter { display: flex; align-items: center; gap: 0.75em; margin-top: 0.5em; }
                     .sentinelFilterBar {
                         display: flex;
                         flex-wrap: wrap;
@@ -309,6 +334,10 @@
                     }
                     .sentinelFilterTab {
                         background: var(--sentinel-surface);
+                        /* Native <button> text does not inherit the page's text color by default
+                           (unlike <span>/<div>), so without this it renders black-on-black against
+                           Jellyfin's dark theme — this is what the "kaum lesbar" report was. */
+                        color: inherit;
                         border: 1px solid var(--sentinel-border);
                         border-radius: 999px;
                         padding: 0.35em 0.9em;
@@ -356,9 +385,10 @@
 
                 var FILTER_DEFINITIONS = [
                     { key: 'All', labelKey: 'UI_FILTER_ALL', match: function () { return true; } },
-                    { key: 'Active', labelKey: 'UI_STATS_ACTIVE', match: function (incident) { return incident.Status === 'Detected' || incident.Status === 'Reopened'; } },
+                    { key: 'Active', labelKey: 'UI_STATS_ACTIVE', match: function (incident) { return (incident.Status === 'Detected' || incident.Status === 'Reopened') && !incident.IsExcepted; } },
                     { key: 'Acknowledged', labelKey: 'UI_STATUS_ACKNOWLEDGED', match: function (incident) { return incident.Status === 'Acknowledged'; } },
-                    { key: 'Resolved', labelKey: 'UI_STATUS_RESOLVED', match: function (incident) { return incident.Status === 'Resolved'; } }
+                    { key: 'Resolved', labelKey: 'UI_STATUS_RESOLVED', match: function (incident) { return incident.Status === 'Resolved'; } },
+                    { key: 'Expected', labelKey: 'UI_FILTER_EXPECTED', match: function (incident) { return incident.IsExcepted === true; } }
                 ];
                 var uiStringsDefaults = {
                     UI_TITLE: 'Jellyfin Sentinel',
@@ -463,10 +493,20 @@
                                     resultSpan.className = 'sentinelTestResult sentinelTestSuccess';
                                     resultSpan.textContent = 'Sent successfully.';
                                 }
-                            }).catch(function () {
-                                if (resultSpan) {
-                                    resultSpan.className = 'sentinelTestResult sentinelTestFailure';
-                                    resultSpan.textContent = 'Failed to send — check the channel is fully configured and the destination is reachable.';
+                            }).catch(function (err) {
+                                if (!resultSpan) {
+                                    return;
+                                }
+
+                                resultSpan.className = 'sentinelTestResult sentinelTestFailure';
+                                resultSpan.textContent = 'Failed to send — check the channel is fully configured and the destination is reachable.';
+
+                                if (err && typeof err.json === 'function') {
+                                    err.json().then(function (body) {
+                                        if (body && body.Reason) {
+                                            resultSpan.textContent = 'Failed to send: ' + body.Reason;
+                                        }
+                                    }).catch(function () { /* body wasn't JSON — keep the generic message */ });
                                 }
                             });
                         });
@@ -559,16 +599,18 @@
                     var badgeClass = STATUS_BADGE_CLASS[incident.Status] || '';
 
                     var card = document.createElement('div');
-                    card.className = 'sentinelIncidentCard ' + badgeClass;
+                    card.className = 'sentinelIncidentCard ' + badgeClass + (incident.IsExcepted ? ' sentinelExcepted' : '');
 
                     var header = document.createElement('div');
                     header.className = 'sentinelIncidentHeader';
                     header.innerHTML =
                         '<div class="sentinelIncidentTitleGroup">' +
                         '<span class="sentinelStatusBadge ' + badgeClass + '">' + escapeHtmlText(statusLabel(incident.Status)) + '</span>' +
+                        (incident.IsExcepted ? '<span class="sentinelStatusBadge sentinelExceptedBadge">' + escapeHtmlText(getUiString('UI_EXCEPTED_BADGE')) + '</span>' : '') +
                         '<span class="sentinelIncidentMedia">' + escapeHtmlText(incident.MediaName) + '</span>' +
                         '<span class="sentinelIncidentOccurrences">' + escapeHtmlText(getUiString('UI_COL_OCCURRENCES')) + ': ' + escapeHtmlText(incident.OccurrenceCount) + '</span>' +
-                        '</div>';
+                        '</div>' +
+                        '<span class="sentinelExpandHint">' + escapeHtmlText(getUiString('UI_CLICK_FOR_DETAILS')) + ' <span class="sentinelExpandChevron">▸</span></span>';
 
                     var meta = document.createElement('div');
                     meta.className = 'sentinelIncidentMeta';
@@ -588,6 +630,46 @@
                         '<strong>' + escapeHtmlText(getUiString('UI_RECOMMENDATION_LABEL')) + '</strong> ' + escapeHtmlText(incident.Recommendation) +
                         '<div><em>' + escapeHtmlText(getUiString('UI_CODE_LABEL')) + ' ' + escapeHtmlText(incident.Code) + '</em></div>' +
                         buildKnownIssueBlock(incident);
+
+                    var noteBlock = document.createElement('div');
+                    noteBlock.className = 'sentinelNoteBlock';
+
+                    var noteLabel = document.createElement('label');
+                    noteLabel.className = 'inputLabel inputLabelUnfocused';
+                    noteLabel.textContent = getUiString('UI_NOTE_LABEL');
+                    noteBlock.appendChild(noteLabel);
+
+                    var noteInput = document.createElement('textarea');
+                    noteInput.className = 'sentinelNoteInput';
+                    noteInput.placeholder = getUiString('UI_NOTE_PLACEHOLDER');
+                    noteInput.value = incident.ResolutionNote || '';
+                    noteInput.addEventListener('click', function (event) { event.stopPropagation(); });
+                    noteBlock.appendChild(noteInput);
+
+                    var noteFooter = document.createElement('div');
+                    noteFooter.className = 'sentinelNoteFooter';
+
+                    var noteSaveButton = document.createElement('button');
+                    noteSaveButton.setAttribute('is', 'emby-button');
+                    noteSaveButton.className = 'raised';
+                    noteSaveButton.textContent = getUiString('UI_NOTE_SAVE_BUTTON');
+                    var noteResult = document.createElement('span');
+                    noteResult.className = 'sentinelTestResult';
+                    noteSaveButton.addEventListener('click', function (event) {
+                        event.stopPropagation();
+                        var url = ApiClient.getUrl('Sentinel/incidents/' + encodeURIComponent(incident.Id) + '/note');
+                        ApiClient.ajax({ type: 'POST', url: url, data: JSON.stringify({ Note: noteInput.value }), contentType: 'application/json' }).then(function () {
+                            noteResult.className = 'sentinelTestResult sentinelTestSuccess';
+                            noteResult.textContent = getUiString('UI_NOTE_SAVED');
+                        }).catch(function () {
+                            noteResult.className = 'sentinelTestResult sentinelTestFailure';
+                            noteResult.textContent = getUiString('UI_LOAD_INCIDENTS_FAILED');
+                        });
+                    });
+                    noteFooter.appendChild(noteSaveButton);
+                    noteFooter.appendChild(noteResult);
+                    noteBlock.appendChild(noteFooter);
+                    detail.appendChild(noteBlock);
 
                     var actions = document.createElement('div');
                     actions.className = 'sentinelIncidentActions';
@@ -616,13 +698,25 @@
                         actions.appendChild(resolveButton);
                     }
 
+                    var exceptionButton = document.createElement('button');
+                    exceptionButton.setAttribute('is', 'emby-button');
+                    exceptionButton.className = 'raised';
+                    exceptionButton.textContent = incident.IsExcepted ? getUiString('UI_UNMARK_EXCEPTION_BUTTON') : getUiString('UI_MARK_EXCEPTION_BUTTON');
+                    exceptionButton.addEventListener('click', function (event) {
+                        event.stopPropagation();
+                        postIncidentAction(incident.Id, incident.IsExcepted ? 'unexcept' : 'except', loadIncidents);
+                    });
+                    actions.appendChild(exceptionButton);
+
                     card.appendChild(header);
                     card.appendChild(meta);
                     card.appendChild(actions);
                     card.appendChild(detail);
 
                     card.addEventListener('click', function () {
-                        detail.style.display = detail.style.display === 'none' ? '' : 'none';
+                        var expanded = detail.style.display !== 'none';
+                        detail.style.display = expanded ? 'none' : '';
+                        card.classList.toggle('sentinelExpanded', !expanded);
                     });
 
                     return card;
@@ -692,10 +786,27 @@
                     });
                 }
 
+                // SupportedLanguage's C# enum order (En, De, Es, Fr, Sv, Da, Pl) matches this
+                // select's option values 0-6. Jellyfin's server JSON serializer may hand this back
+                // as either the numeric value or the enum's name (e.g. "En") depending on server
+                // version/config, so both are handled here — a plain String(config.Language) only
+                // worked for the numeric case, leaving the select blank whenever the server sent a
+                // name instead.
+                var SUPPORTED_LANGUAGE_NAMES = ['En', 'De', 'Es', 'Fr', 'Sv', 'Da', 'Pl'];
+
+                function resolveLanguageIndex(rawLanguage) {
+                    if (typeof rawLanguage === 'number') {
+                        return rawLanguage;
+                    }
+
+                    var index = SUPPORTED_LANGUAGE_NAMES.indexOf(rawLanguage);
+                    return index >= 0 ? index : 0;
+                }
+
                 function loadLanguageSetting() {
                     Dashboard.showLoadingMsg();
                     ApiClient.getPluginConfiguration(SentinelConfig.pluginUniqueId).then(function (config) {
-                        document.querySelector('#SentinelLanguage').value = String(config.Language);
+                        document.querySelector('#SentinelLanguage').value = String(resolveLanguageIndex(config.Language));
                         loadNotificationSettings(config);
                         Dashboard.hideLoadingMsg();
                     });

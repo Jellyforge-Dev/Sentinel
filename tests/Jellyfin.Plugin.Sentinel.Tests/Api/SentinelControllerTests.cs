@@ -205,7 +205,7 @@ public class SentinelControllerTests : IDisposable
             Evidence = new[] { "TranscodeReasons = VideoCodecNotSupported" }
         };
         var diagnosisId = _diagnosisRepository.Insert(playbackEventId, diagnosis);
-        _incidentRepository.UpsertOnDiagnosis(diagnosisId, diagnosis.Code, playbackEvent.ItemId, playbackEvent.Client, playbackEvent.DeviceName, playbackEvent.UserName);
+        _incidentRepository.UpsertOnDiagnosis(diagnosisId, diagnosis.Code, playbackEvent.ItemId, playbackEvent.Client, playbackEvent.DeviceName, playbackEvent.UserName, false);
 
         var result = Assert.IsType<OkObjectResult>(_controller.GetIncidents());
         var response = Assert.IsAssignableFrom<IEnumerable<object>>(result.Value).ToList();
@@ -248,7 +248,7 @@ public class SentinelControllerTests : IDisposable
             Evidence = new[] { "TranscodeReasons = VideoCodecNotSupported" }
         };
         var diagnosisId = _diagnosisRepository.Insert(playbackEventId, diagnosis);
-        var incidentId = _incidentRepository.UpsertOnDiagnosis(diagnosisId, diagnosis.Code, playbackEvent.ItemId, playbackEvent.Client, playbackEvent.DeviceName, playbackEvent.UserName).IncidentId;
+        var incidentId = _incidentRepository.UpsertOnDiagnosis(diagnosisId, diagnosis.Code, playbackEvent.ItemId, playbackEvent.Client, playbackEvent.DeviceName, playbackEvent.UserName, false).IncidentId;
 
         Assert.IsType<OkResult>(_controller.AcknowledgeIncident(incidentId));
 
@@ -283,7 +283,7 @@ public class SentinelControllerTests : IDisposable
             Evidence = new[] { "TranscodeReasons = VideoCodecNotSupported" }
         };
         var diagnosisId = _diagnosisRepository.Insert(playbackEventId, diagnosis);
-        var incidentId = _incidentRepository.UpsertOnDiagnosis(diagnosisId, diagnosis.Code, playbackEvent.ItemId, playbackEvent.Client, playbackEvent.DeviceName, playbackEvent.UserName).IncidentId;
+        var incidentId = _incidentRepository.UpsertOnDiagnosis(diagnosisId, diagnosis.Code, playbackEvent.ItemId, playbackEvent.Client, playbackEvent.DeviceName, playbackEvent.UserName, false).IncidentId;
 
         Assert.IsType<OkResult>(_controller.ResolveIncident(incidentId));
 
@@ -303,8 +303,9 @@ public class SentinelControllerTests : IDisposable
         // the endpoint must surface that as 502 rather than throwing or returning 200.
         var result = await _controller.SendTestNotification("webhook", CancellationToken.None);
 
-        var statusCodeResult = Assert.IsType<StatusCodeResult>(result);
-        Assert.Equal(StatusCodes.Status502BadGateway, statusCodeResult.StatusCode);
+        var objectResult = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status502BadGateway, objectResult.StatusCode);
+        Assert.NotNull(objectResult.Value);
     }
 
     public void Dispose()

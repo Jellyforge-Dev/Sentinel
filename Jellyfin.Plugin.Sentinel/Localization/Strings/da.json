@@ -51,5 +51,14 @@
   "UI_STATS_TOTAL": "I alt",
   "UI_STATS_ACTIVE": "Aktive",
   "UI_FILTER_ALL": "Alle",
-  "UI_NO_INCIDENTS_FOR_FILTER": "Ingen hændelser matcher dette filter."
+  "UI_NO_INCIDENTS_FOR_FILTER": "Ingen hændelser matcher dette filter.",
+  "UI_CLICK_FOR_DETAILS": "Klik for flere detaljer",
+  "UI_NOTE_LABEL": "Løsningsnote",
+  "UI_NOTE_PLACEHOLDER": "Hvad løste dette for brugeren? (f.eks. aktiverede hardwaretranskodning, opdaterede klientappen)",
+  "UI_NOTE_SAVE_BUTTON": "Gem note",
+  "UI_NOTE_SAVED": "Note gemt.",
+  "UI_MARK_EXCEPTION_BUTTON": "Markér som forventet",
+  "UI_UNMARK_EXCEPTION_BUTTON": "Fjern undtagelse",
+  "UI_FILTER_EXPECTED": "Forventet",
+  "UI_EXCEPTED_BADGE": "Forventet — ikke markeret som et problem"
 }

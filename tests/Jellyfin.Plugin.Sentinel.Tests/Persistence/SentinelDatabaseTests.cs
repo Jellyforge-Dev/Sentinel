@@ -149,7 +149,7 @@ public class SentinelDatabaseTests : IDisposable
             });
 
             var incidentRepository = new IncidentRepository(migratedDatabase);
-            incidentRepository.UpsertOnDiagnosis(diagnosisId, "VIDEO_CODEC_UNSUPPORTED", "item-migrated", "Fire TV", "Living Room TV", "Alice");
+            incidentRepository.UpsertOnDiagnosis(diagnosisId, "VIDEO_CODEC_UNSUPPORTED", "item-migrated", "Fire TV", "Living Room TV", "Alice", false);
 
             var incidents = incidentRepository.GetRecent(50);
             Assert.Single(incidents);

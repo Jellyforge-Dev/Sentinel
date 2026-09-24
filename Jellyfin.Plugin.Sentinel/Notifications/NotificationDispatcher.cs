@@ -11,6 +11,13 @@ using Microsoft.Extensions.Logging;
 namespace Jellyfin.Plugin.Sentinel.Notifications;
 
 /// <summary>
+/// The outcome of <see cref="NotificationDispatcher.SendTestNotificationAsync"/> — whether the
+/// test send succeeded and, if not, a human-readable reason (HTTP status or exception message)
+/// the dashboard's "Send test" button can show instead of a generic failure message.
+/// </summary>
+public readonly record struct NotificationTestResult(bool Success, string? Reason);
+
+/// <summary>
 /// Builds a <see cref="NotificationMessage"/> from a diagnosis and sends it to every enabled,
 /// severity-eligible channel. Callers are responsible for only invoking <see cref="DispatchAsync"/>
 /// once per new-or-reopened incident — see <see cref="Persistence.IncidentUpsertResult"/> — never per raw
@@ -141,21 +148,21 @@ public sealed partial class NotificationDispatcher
     /// </summary>
     /// <param name="channelName">The channel to test.</param>
     /// <param name="cancellationToken">Used to cancel the send.</param>
-    /// <returns>True if the test message was sent successfully; false if the channel isn't configured or the send failed.</returns>
-    public async Task<bool> SendTestNotificationAsync(string channelName, CancellationToken cancellationToken)
+    /// <returns>Whether the test message was sent successfully, and — if not — a human-readable reason (HTTP status or exception message) the dashboard can show the admin instead of a generic failure.</returns>
+    public async Task<NotificationTestResult> SendTestNotificationAsync(string channelName, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(channelName);
 
         var config = Plugin.Instance?.Configuration;
         if (config is null)
         {
-            return false;
+            return new NotificationTestResult(false, "Plugin configuration is not available.");
         }
 
         var channel = BuildChannelByName(channelName, config);
         if (channel is null)
         {
-            return false;
+            return new NotificationTestResult(false, "Channel is not fully configured — check every required field for this channel is filled in and saved.");
         }
 
         var testMessage = new NotificationMessage
@@ -166,7 +173,8 @@ public sealed partial class NotificationDispatcher
             IncidentUrl = string.Empty
         };
 
-        return await channel.SendAsync(testMessage, cancellationToken).ConfigureAwait(false);
+        var success = await channel.SendAsync(testMessage, cancellationToken).ConfigureAwait(false);
+        return new NotificationTestResult(success, success ? null : channel.LastFailureReason);
     }
 
     private static string BuildBody(string explanation, PlaybackEvent playbackEvent)

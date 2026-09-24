@@ -47,6 +47,9 @@ public sealed partial class TelegramNotificationChannel : INotificationChannel
     public string ChannelName => "Telegram";
 
     /// <inheritdoc />
+    public string? LastFailureReason { get; private set; }
+
+    /// <inheritdoc />
     public async Task<bool> SendAsync(NotificationMessage message, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(message);
@@ -68,24 +71,29 @@ public sealed partial class TelegramNotificationChannel : INotificationChannel
                 if (!retryResponse.IsSuccessStatusCode)
                 {
                     LogTelegramSendFailed(_logger, (int)retryResponse.StatusCode);
+                    LastFailureReason = $"HTTP {(int)retryResponse.StatusCode} {retryResponse.ReasonPhrase}";
                     return false;
                 }
 
+                LastFailureReason = null;
                 return true;
             }
 
             if (!response.IsSuccessStatusCode)
             {
                 LogTelegramSendFailed(_logger, (int)response.StatusCode);
+                LastFailureReason = $"HTTP {(int)response.StatusCode} {response.ReasonPhrase}";
                 return false;
             }
 
+            LastFailureReason = null;
             return true;
         }
 #pragma warning disable CA1031
         catch (Exception ex)
         {
             LogTelegramSendException(_logger, ex);
+            LastFailureReason = ex.Message;
             return false;
         }
 #pragma warning restore CA1031

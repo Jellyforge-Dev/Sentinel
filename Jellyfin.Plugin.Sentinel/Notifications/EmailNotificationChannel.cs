@@ -55,6 +55,9 @@ public sealed partial class EmailNotificationChannel : INotificationChannel
     public string ChannelName => "Email";
 
     /// <inheritdoc />
+    public string? LastFailureReason { get; private set; }
+
+    /// <inheritdoc />
     public async Task<bool> SendAsync(NotificationMessage message, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(message);
@@ -82,12 +85,14 @@ public sealed partial class EmailNotificationChannel : INotificationChannel
             await client.SendAsync(mimeMessage, cancellationToken).ConfigureAwait(false);
             await client.DisconnectAsync(true, cancellationToken).ConfigureAwait(false);
 
+            LastFailureReason = null;
             return true;
         }
 #pragma warning disable CA1031
         catch (Exception ex)
         {
             LogEmailSendException(_logger, ex);
+            LastFailureReason = ex.Message;
             return false;
         }
 #pragma warning restore CA1031

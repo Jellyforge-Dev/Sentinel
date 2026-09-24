@@ -51,5 +51,14 @@
   "UI_STATS_TOTAL": "Total",
   "UI_STATS_ACTIVE": "Activos",
   "UI_FILTER_ALL": "Todos",
-  "UI_NO_INCIDENTS_FOR_FILTER": "Ningún incidente coincide con este filtro."
+  "UI_NO_INCIDENTS_FOR_FILTER": "Ningún incidente coincide con este filtro.",
+  "UI_CLICK_FOR_DETAILS": "Haga clic para más detalles",
+  "UI_NOTE_LABEL": "Nota de resolución",
+  "UI_NOTE_PLACEHOLDER": "¿Qué solucionó esto para el usuario? (p. ej., se activó la transcodificación por hardware, se actualizó la app del cliente)",
+  "UI_NOTE_SAVE_BUTTON": "Guardar nota",
+  "UI_NOTE_SAVED": "Nota guardada.",
+  "UI_MARK_EXCEPTION_BUTTON": "Marcar como esperado",
+  "UI_UNMARK_EXCEPTION_BUTTON": "Quitar excepción",
+  "UI_FILTER_EXPECTED": "Esperado",
+  "UI_EXCEPTED_BADGE": "Esperado — no marcado como problema"
 }

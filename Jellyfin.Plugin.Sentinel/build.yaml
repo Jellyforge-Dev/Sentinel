@@ -1,7 +1,7 @@
 ---
 name: "Sentinel"
 guid: "4b5e3a79-7798-4066-841e-db7eb0125dc9"
-version: "0.1.6.0"
+version: "0.1.6.1"
 targetAbi: "12.1.0.0"
 framework: "net10.0"
 overview: "Evidence-based root-cause diagnosis for Jellyfin playback problems"
@@ -72,6 +72,31 @@ artifacts:
 - "runtimes/osx-x64/native/libe_sqlite3.dylib"
 - "runtimes/osx-arm64/native/libe_sqlite3.dylib"
 changelog: >
+  0.1.6.1: Fixes six issues found during the first real live-server test pass of 0.1.6.0. (1) The
+  Language dropdown appeared empty when reopening the config page — root cause: the server can
+  serialize the Language enum as its name (e.g. "De") rather than a number, which the dropdown only
+  recognized numerically; now handles both. (2) Incident cards gave no visual hint that clicking
+  expands them — added a chevron and "click for details" hint, localized in all 7 languages. (3)
+  Added a free-text resolution-note field per incident, so an admin can record what actually fixed
+  the problem for that user (new ResolutionNote column, POST Sentinel/incidents/{id}/note endpoint).
+  (4) "Send test" on every notification channel failed with an uninformative generic message — a
+  full review of the config save/load wiring and all four channel implementations found no code
+  defect, so instead every channel now reports its real failure reason (HTTP status or exception
+  message) via a new LastFailureReason surface, replacing the generic message with an actionable
+  one. (5) The incident filter tabs (All/Active/Acknowledged/Resolved) rendered black text on a
+  dark, semi-transparent background — native <button> elements don't inherit the page's text color
+  by default, unlike <span>/<div>; fixed with an explicit color: inherit. (6) Added an exceptions
+  feature: an admin can mark an incident's (rule code, username) combination as an accepted
+  exception — e.g. a user who intentionally always transcodes via a GPU — via a new "Mark as
+  expected" button; excepted incidents surface under a new "Expected" filter tab instead of
+  "Active", and future notifications for that combination are suppressed (reversible via "Remove
+  exception"). All six fixes were driven by real, specific live-server feedback, not speculative
+  polish. Verified: full local build and test suite (174/174 passing, 0 warnings/errors) against
+  the actual project TargetFramework (net10.0); all 7 locale files independently confirmed to carry
+  an identical key set; the new dashboard JS's use of ApiClient.ajax (JSON POST body, and reading
+  the failed-request Response object for the failure-reason JSON) was verified against Jellyfin's
+  own jellyfin-apiclient-javascript source rather than assumed. NOT yet confirmed in a real browser
+  against a live server by this session — that is the next step for the admin.
   0.1.6.0: Adds plugin-update and restart-pending notifications — a new, user-requested feature
   not in the original master plan. Sentinel now checks hourly for available plugin updates (any
   installed plugin, not just itself) and notifies once per distinct plugin+version, deduplicated

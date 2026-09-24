@@ -37,6 +37,9 @@ public sealed partial class WebhookNotificationChannel : INotificationChannel
     public string ChannelName => "Webhook";
 
     /// <inheritdoc />
+    public string? LastFailureReason { get; private set; }
+
+    /// <inheritdoc />
     public async Task<bool> SendAsync(NotificationMessage message, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(message);
@@ -49,15 +52,18 @@ public sealed partial class WebhookNotificationChannel : INotificationChannel
             if (!response.IsSuccessStatusCode)
             {
                 LogWebhookSendFailed(_logger, (int)response.StatusCode);
+                LastFailureReason = $"HTTP {(int)response.StatusCode} {response.ReasonPhrase}";
                 return false;
             }
 
+            LastFailureReason = null;
             return true;
         }
 #pragma warning disable CA1031
         catch (Exception ex)
         {
             LogWebhookSendException(_logger, ex);
+            LastFailureReason = ex.Message;
             return false;
         }
 #pragma warning restore CA1031

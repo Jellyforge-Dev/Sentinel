@@ -26,7 +26,9 @@ public class IncidentTests
             FirstSeenUtc = firstSeen,
             LastSeenUtc = lastSeen,
             AcknowledgedAtUtc = acknowledged,
-            ResolvedAtUtc = null
+            ResolvedAtUtc = null,
+            ResolutionNote = "Enabled hardware transcoding.",
+            IsExcepted = true
         };
 
         Assert.Equal(1, incident.Id);
@@ -41,5 +43,7 @@ public class IncidentTests
         Assert.Equal(lastSeen, incident.LastSeenUtc);
         Assert.Equal(acknowledged, incident.AcknowledgedAtUtc);
         Assert.Null(incident.ResolvedAtUtc);
+        Assert.Equal("Enabled hardware transcoding.", incident.ResolutionNote);
+        Assert.True(incident.IsExcepted);
     }
 }

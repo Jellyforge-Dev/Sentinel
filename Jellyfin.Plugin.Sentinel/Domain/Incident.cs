@@ -44,4 +44,10 @@ public sealed class Incident
 
     /// <summary>Gets the UTC time an administrator resolved this incident, if they have and it has not since reopened.</summary>
     public DateTime? ResolvedAtUtc { get; init; }
+
+    /// <summary>Gets the administrator's free-text note on what ultimately fixed this for the user, if any.</summary>
+    public required string ResolutionNote { get; init; }
+
+    /// <summary>Gets whether an administrator has marked this incident's (Code, UserName) combination as an accepted exception — e.g. a user who intentionally always transcodes — so it is surfaced informationally rather than treated as a problem needing attention.</summary>
+    public required bool IsExcepted { get; init; }
 }
