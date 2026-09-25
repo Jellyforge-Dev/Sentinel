@@ -118,13 +118,16 @@ public sealed partial class DiscordNotificationChannel : INotificationChannel
         return new { embeds = new[] { embed } };
     }
 
-    // These specific hex values match the status-badge colors already used in the dashboard's own
-    // CSS (configPage.html), for visual consistency between the plugin's own UI and its Discord
-    // notifications — not an independent color choice.
+    // These specific hex values match the five-level Info/Notice/Warning/Important/Critical legend
+    // drawn in Sentinel's own logo artwork (blue/green/yellow/orange/red) and the matching CSS in
+    // configPage.html, for visual consistency between the plugin's branding, its dashboard, and its
+    // Discord notifications — not an independent color choice.
     private static int SeverityToColor(string severity) => severity switch
     {
-        "high" => 0xE05252,
-        "medium" => 0xE0A030,
+        "critical" => 0xE05252,
+        "important" => 0xE0A030,
+        "warning" => 0xE0C93A,
+        "notice" => 0x5FBF5F,
         _ => 0x4A90D9
     };
 

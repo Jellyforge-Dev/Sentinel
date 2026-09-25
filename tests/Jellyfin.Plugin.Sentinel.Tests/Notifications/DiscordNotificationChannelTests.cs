@@ -154,7 +154,7 @@ public class DiscordNotificationChannelTests
         {
             Title = "Test Incident",
             Body = "Something happened.",
-            Severity = "high",
+            Severity = "critical",
             IncidentUrl = "http://example.com/incident/1"
         };
 
@@ -186,7 +186,7 @@ public class DiscordNotificationChannelTests
     {
         Title = "Test Incident",
         Body = "Something happened.",
-        Severity = "high",
+        Severity = "critical",
         IncidentUrl = "https://jellyfin.example.com/web/index.html#!/configurationpage?name=Sentinel"
     };
 }

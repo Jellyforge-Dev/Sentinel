@@ -151,7 +151,7 @@ public sealed partial class PluginUpdateMonitorHostedService : IHostedService, I
         {
             Title = $"Sentinel: {newUpdates.Count} plugin update(s) available",
             Body = string.Join("\n", newUpdates.Select(u => $"{u.Name} v{u.Version}")),
-            Severity = "low",
+            Severity = "info",
             IncidentUrl = string.Empty
         };
 
@@ -204,7 +204,7 @@ public sealed partial class PluginUpdateMonitorHostedService : IHostedService, I
         {
             Title = "Sentinel: Server restart is pending",
             Body = BuildRestartPendingBody(hasRecentUpdate),
-            Severity = "medium",
+            Severity = "warning",
             IncidentUrl = string.Empty
         };
 

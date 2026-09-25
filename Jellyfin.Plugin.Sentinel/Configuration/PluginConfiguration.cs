@@ -30,8 +30,8 @@ public class PluginConfiguration : BasePluginConfiguration
     /// <summary>Gets or sets whether the Telegram notification channel is enabled.</summary>
     public bool TelegramEnabled { get; set; }
 
-    /// <summary>Gets or sets the minimum severity that triggers a Telegram notification.</summary>
-    public string TelegramMinSeverity { get; set; } = "low";
+    /// <summary>Gets or sets the minimum severity ("info"/"notice"/"warning"/"important"/"critical") that triggers a Telegram notification.</summary>
+    public string TelegramMinSeverity { get; set; } = "info";
 
     /// <summary>Gets or sets the SMTP server host for email notifications.</summary>
     public string EmailSmtpHost { get; set; } = string.Empty;
@@ -54,8 +54,8 @@ public class PluginConfiguration : BasePluginConfiguration
     /// <summary>Gets or sets whether the email notification channel is enabled.</summary>
     public bool EmailEnabled { get; set; }
 
-    /// <summary>Gets or sets the minimum severity that triggers an email notification.</summary>
-    public string EmailMinSeverity { get; set; } = "low";
+    /// <summary>Gets or sets the minimum severity ("info"/"notice"/"warning"/"important"/"critical") that triggers an email notification.</summary>
+    public string EmailMinSeverity { get; set; } = "info";
 
     /// <summary>Gets or sets whether the generic webhook notification channel is enabled.</summary>
     public bool WebhookEnabled { get; set; }
@@ -63,8 +63,18 @@ public class PluginConfiguration : BasePluginConfiguration
     /// <summary>Gets or sets the destination URL for the generic webhook notification channel.</summary>
     public string WebhookUrl { get; set; } = string.Empty;
 
-    /// <summary>Gets or sets the minimum severity ("low"/"medium"/"high") that triggers a webhook notification.</summary>
-    public string WebhookMinSeverity { get; set; } = "low";
+    /// <summary>
+    /// Gets or sets an optional shared secret sent as the <c>X-Sentinel-Secret</c> header on every
+    /// generic webhook POST, so the receiving endpoint can verify a request actually came from this
+    /// Sentinel instance rather than an arbitrary third party that guessed or intercepted the URL.
+    /// Discord/Telegram already carry an equivalent secret in their own webhook URL/bot token; Email
+    /// already requires SMTP auth — the generic webhook is the one channel with no such built-in
+    /// proof of origin, which is exactly what this field addresses.
+    /// </summary>
+    public string WebhookSecret { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the minimum severity ("info"/"notice"/"warning"/"important"/"critical") that triggers a webhook notification.</summary>
+    public string WebhookMinSeverity { get; set; } = "info";
 
     /// <summary>Gets or sets whether the Discord notification channel is enabled.</summary>
     public bool DiscordEnabled { get; set; }
@@ -72,6 +82,6 @@ public class PluginConfiguration : BasePluginConfiguration
     /// <summary>Gets or sets the Discord webhook URL notifications are sent to.</summary>
     public string DiscordWebhookUrl { get; set; } = string.Empty;
 
-    /// <summary>Gets or sets the minimum severity that triggers a Discord notification.</summary>
-    public string DiscordMinSeverity { get; set; } = "low";
+    /// <summary>Gets or sets the minimum severity ("info"/"notice"/"warning"/"important"/"critical") that triggers a Discord notification.</summary>
+    public string DiscordMinSeverity { get; set; } = "info";
 }

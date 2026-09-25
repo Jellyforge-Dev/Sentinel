@@ -13,7 +13,7 @@ namespace Jellyfin.Plugin.Sentinel.Persistence;
 /// </summary>
 /// <param name="IncidentId">The ID of the incident that was created, incremented, or reopened.</param>
 /// <param name="IsNewOrReopened">Whether this specific call is the one that should trigger a notification.</param>
-/// <param name="IsExcepted">Whether this incident's (Code, UserName) currently matches an admin-created exception — callers must skip notification dispatch when this is true, even if <paramref name="IsNewOrReopened"/> is also true.</param>
+/// <param name="IsExcepted">Whether this incident's Code currently has an admin-configured "Expected" rule policy — callers must skip notification dispatch when this is true, even if <paramref name="IsNewOrReopened"/> is also true.</param>
 public readonly record struct IncidentUpsertResult(long IncidentId, bool IsNewOrReopened, bool IsExcepted);
 
 /// <summary>
@@ -46,7 +46,7 @@ public sealed class IncidentRepository
     /// <param name="client">The Jellyfin client name.</param>
     /// <param name="deviceName">The device name.</param>
     /// <param name="userName">The Jellyfin username most recently affected — not part of the fingerprint, but written on every branch so <see cref="Incident.UserName"/> always reflects the most recent occurrence, matching <see cref="Incident.LastSeenUtc"/>'s semantics.</param>
-    /// <param name="isExcepted">Whether this (code, userName) combination currently matches an admin-created exception — see <see cref="MarkExcepted"/>. Written on every branch, like <paramref name="userName"/>, so an exception added after an incident already exists still takes effect the next time that incident recurs.</param>
+    /// <param name="isExcepted">Whether this diagnosis's Code currently has an admin-configured "Expected" rule policy — see <see cref="SetRulePolicy"/>. Written on every branch, like <paramref name="userName"/>, so a policy change takes effect the next time that incident recurs.</param>
     /// <returns>The ID of the incident that was created, incremented, or reopened, and whether this call is the one that should trigger a notification.</returns>
     public IncidentUpsertResult UpsertOnDiagnosis(long diagnosisId, string code, string itemId, string client, string deviceName, string userName, bool isExcepted)
     {
@@ -193,19 +193,40 @@ public sealed class IncidentRepository
     }
 
     /// <summary>
-    /// Checks whether userName currently matches an admin-created exception, for the collector to
-    /// pass into <see cref="UpsertOnDiagnosis"/>. Scoped to the user alone (not a specific rule
-    /// code) — see <see cref="MarkExcepted"/>'s remarks for why.
+    /// Checks whether code currently has an admin-configured "Expected" policy, for the collector
+    /// to pass into <see cref="UpsertOnDiagnosis"/>. Scoped to the rule code alone (server-wide, not
+    /// per user or per media item) — see <see cref="SetRulePolicy"/>'s remarks for why.
     /// </summary>
-    /// <param name="userName">The Jellyfin username.</param>
-    /// <returns>True if this user is currently marked as an accepted exception.</returns>
-    public bool IsExcepted(string userName)
+    /// <param name="code">The diagnostic rule code.</param>
+    /// <returns>True if this rule code is currently policed as "Expected".</returns>
+    public bool IsCodeExpected(string code)
     {
         using var connection = _database.OpenConnection();
         using var command = connection.CreateCommand();
-        command.CommandText = "SELECT COUNT(*) FROM IncidentException WHERE UserName = $userName;";
-        command.Parameters.AddWithValue("$userName", userName);
+        command.CommandText = "SELECT COUNT(*) FROM RulePolicy WHERE Code = $code AND Action = 'Expected';";
+        command.Parameters.AddWithValue("$code", code);
         return (long)command.ExecuteScalar()! > 0;
+    }
+
+    /// <summary>
+    /// Gets every rule code that currently has a non-default policy (i.e. is marked "Expected"),
+    /// for the dashboard's rule-policy settings panel to pre-select against the full known-code list.
+    /// </summary>
+    /// <returns>The set of rule codes currently marked "Expected".</returns>
+    public IReadOnlyCollection<string> GetExpectedCodes()
+    {
+        using var connection = _database.OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT Code FROM RulePolicy WHERE Action = 'Expected';";
+
+        var codes = new List<string>();
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            codes.Add(reader.GetString(0));
+        }
+
+        return codes;
     }
 
     /// <summary>
@@ -225,74 +246,54 @@ public sealed class IncidentRepository
     }
 
     /// <summary>
-    /// Records userName as an accepted exception — e.g. a user who intentionally always
-    /// transcodes via a GPU — and immediately marks every currently-open Incident row for that
-    /// user (any rule code, any media item) as excepted, so the dashboard stops treating them as
-    /// problems needing attention. Deliberately scoped to the user alone, not a specific rule
-    /// code: real-world feedback showed a single user's transcoding routinely trips several
-    /// different diagnosis codes across different titles (e.g. one video triggers an HDR
-    /// tone-mapping diagnosis, another a bitrate-cap diagnosis), and a code-scoped exception left
-    /// every one of those feeling like a separate, per-title problem to re-except instead of one
-    /// blanket "this user is fine" decision.
+    /// Sets whether a diagnostic rule code is treated as "Expected" (suppressing notifications for
+    /// it) or "Notify" (the default), and immediately updates every currently-open Incident row for
+    /// that code to match. Deliberately scoped to the rule code alone, server-wide — not to a
+    /// specific user or media item: live-server feedback said the previous per-user "mark this
+    /// incident as expected" button still felt like it applied "per movie/show" one at a time,
+    /// when what was wanted is a fixed, admin-configurable policy per diagnosis reason
+    /// ("if: HDR tone-mapping then: expected") that applies everywhere that reason occurs, for
+    /// anyone.
     /// </summary>
-    /// <param name="userName">The Jellyfin username.</param>
-    /// <param name="reason">An optional free-text reason, for the admin's own reference.</param>
-    public void MarkExcepted(string userName, string reason)
+    /// <param name="code">The diagnostic rule code.</param>
+    /// <param name="expected">True to mark this code "Expected" (suppressed); false to reset it to the default "Notify".</param>
+    public void SetRulePolicy(string code, bool expected)
     {
         using var connection = _database.OpenConnection();
         using var transaction = connection.BeginTransaction();
 
-        using (var upsertCommand = connection.CreateCommand())
+        using (var writeCommand = connection.CreateCommand())
         {
-            upsertCommand.Transaction = transaction;
-            upsertCommand.CommandText =
-                """
-                INSERT INTO IncidentException (UserName, Reason, CreatedAtUtc)
-                VALUES ($userName, $reason, $now)
-                ON CONFLICT (UserName) DO UPDATE SET Reason = excluded.Reason;
-                """;
-            upsertCommand.Parameters.AddWithValue("$userName", userName);
-            upsertCommand.Parameters.AddWithValue("$reason", reason);
-            upsertCommand.Parameters.AddWithValue("$now", DateTime.UtcNow.ToString("O"));
-            upsertCommand.ExecuteNonQuery();
+            writeCommand.Transaction = transaction;
+
+            // CA2100 flags this ternary the same way it flags the identical pattern in
+            // IncidentRepository.UpsertOnDiagnosis — neither branch incorporates caller-supplied
+            // text, only parameter placeholders bound below.
+#pragma warning disable CA2100
+            writeCommand.CommandText = expected
+                ? """
+                  INSERT INTO RulePolicy (Code, Action, CreatedAtUtc)
+                  VALUES ($code, 'Expected', $now)
+                  ON CONFLICT (Code) DO UPDATE SET Action = 'Expected';
+                  """
+                : "DELETE FROM RulePolicy WHERE Code = $code;";
+#pragma warning restore CA2100
+            writeCommand.Parameters.AddWithValue("$code", code);
+            if (expected)
+            {
+                writeCommand.Parameters.AddWithValue("$now", DateTime.UtcNow.ToString("O"));
+            }
+
+            writeCommand.ExecuteNonQuery();
         }
 
         using (var markCommand = connection.CreateCommand())
         {
             markCommand.Transaction = transaction;
-            markCommand.CommandText = "UPDATE Incident SET IsExcepted = 1 WHERE UserName = $userName;";
-            markCommand.Parameters.AddWithValue("$userName", userName);
+            markCommand.CommandText = "UPDATE Incident SET IsExcepted = $isExcepted WHERE Code = $code;";
+            markCommand.Parameters.AddWithValue("$isExcepted", expected);
+            markCommand.Parameters.AddWithValue("$code", code);
             markCommand.ExecuteNonQuery();
-        }
-
-        transaction.Commit();
-    }
-
-    /// <summary>
-    /// Removes userName as an accepted exception and clears the excepted flag on every currently
-    /// matching Incident row, so future and existing occurrences for that user are treated as
-    /// problems again.
-    /// </summary>
-    /// <param name="userName">The Jellyfin username.</param>
-    public void ClearExcepted(string userName)
-    {
-        using var connection = _database.OpenConnection();
-        using var transaction = connection.BeginTransaction();
-
-        using (var deleteCommand = connection.CreateCommand())
-        {
-            deleteCommand.Transaction = transaction;
-            deleteCommand.CommandText = "DELETE FROM IncidentException WHERE UserName = $userName;";
-            deleteCommand.Parameters.AddWithValue("$userName", userName);
-            deleteCommand.ExecuteNonQuery();
-        }
-
-        using (var clearCommand = connection.CreateCommand())
-        {
-            clearCommand.Transaction = transaction;
-            clearCommand.CommandText = "UPDATE Incident SET IsExcepted = 0 WHERE UserName = $userName;";
-            clearCommand.Parameters.AddWithValue("$userName", userName);
-            clearCommand.ExecuteNonQuery();
         }
 
         transaction.Commit();

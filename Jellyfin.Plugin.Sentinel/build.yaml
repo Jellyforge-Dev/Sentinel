@@ -1,7 +1,7 @@
 ---
 name: "Sentinel"
 guid: "4b5e3a79-7798-4066-841e-db7eb0125dc9"
-version: "0.1.6.2"
+version: "0.1.6.3"
 targetAbi: "12.1.0.0"
 framework: "net10.0"
 overview: "Evidence-based root-cause diagnosis for Jellyfin playback problems"
@@ -72,6 +72,49 @@ artifacts:
 - "runtimes/osx-x64/native/libe_sqlite3.dylib"
 - "runtimes/osx-arm64/native/libe_sqlite3.dylib"
 changelog: >
+  0.1.6.3: Addresses live-server feedback on 0.1.6.2's notification/exception feature set, plus a
+  logo fix and outbound webhook security. (1) Severity is now the five-level Info/Notice/Warning/
+  Important/Critical scheme already drawn in Sentinel's own logo artwork, replacing the previous
+  low/medium/high scheme everywhere (per-channel minimum-severity thresholds, Discord embed colors,
+  notification dispatch) — Confidence maps 1:1 (Confirmed→Critical, VeryLikely→Important,
+  Likely→Warning, Possible→Notice, Unknown→Info). Existing per-channel MinSeverity config values
+  reset to "info" (equivalent to the old "low" — notify on everything) since the old three-word
+  vocabulary has no valid representation in the new one. (2) The "Mark as expected" per-incident
+  button (added in 0.1.6.1, rescoped to per-user in 0.1.6.2) is replaced by a new Rule Policy
+  settings panel: a fixed, admin-configurable Notify/Expected choice per diagnosis rule code,
+  applied server-wide — matching direct feedback that a per-incident/per-user toggle still felt
+  "per movie/show" rather than a real, general policy. The old IncidentException table is dropped
+  (not migrated — the keying dimension changed from username to rule code, with no meaningful
+  mapping between the two) in favor of a new RulePolicy table. New GET Sentinel/rules and POST
+  Sentinel/rules/{code}/policy endpoints back the panel. (3) Added an explanation of what "Minimum
+  Severity" actually does, directly under the Notification Channels heading. (4) The generic
+  Webhook channel gains an optional shared secret, sent as an X-Sentinel-Secret header on every
+  request, so the receiving endpoint can verify a request actually came from this Sentinel instance
+  rather than an arbitrary third party — Discord/Telegram/Email already carry an equivalent proof of
+  origin (webhook URL, bot token, SMTP auth); the generic webhook was the one channel without one.
+  (5) Sentinel's logo was a dense square (1254x1254) mascot illustration with a fully transparent
+  background; compared directly against a working reference plugin's logo (1920x1080, opaque dark
+  background) this turned out to be a very plausible explanation for "displayed at the wrong size"
+  in Jellyfin's plugin catalog card — reformatted (not redrawn) onto a matching 1920x1080 opaque dark
+  canvas, same artwork, centered and scaled to fill it. Investigated but NOT code-changed, for lack
+  of any actual defect found: the plugin-update-not-detected report (Jellyfin's own
+  GetAvailablePluginUpdates only surfaces updates from repositories/manifests the server already
+  knows about — a test plugin outside any registered repository would never appear, by design, not
+  a Sentinel bug) and the stuck-at-0.1.5.0 catalog version report (build.yaml has correctly read
+  0.1.6.2 since that release; this looks like a stale local meta.json from a manual file copy or an
+  incomplete restart on that specific server, not a packaging defect — flagged for the admin to
+  check the actual meta.json inside the installed plugin folder). The immediate-delivery reliability
+  report ("only Discord arrives reliably now" — the reverse of 0.1.6.1's report) was reviewed again
+  against the shared dispatch path (identical sequential per-channel send, identical try/catch-and-
+  log-real-reason per channel) with no defect found; flagged for the admin to capture server logs
+  from Sentinel's own per-channel failure-reason logging next time it recurs, since two contradictory
+  live-server reports about the same code path is itself evidence there's no code defect at fault.
+  Deliberately deferred to a later release, given its size relative to everything else here: Server-
+  Health / media-codec-preference scanning (config target codec/resolution, periodic scan,
+  notify-or-list-only). Verified: full local build and test suite (180/180 passing, 0 warnings/
+  errors) against net10.0; all 7 locale files independently confirmed to carry an identical key set
+  (91 keys); the ui-strings allowlist cross-checked against en.json to confirm no requested key is
+  missing. NOT yet confirmed in a real browser against a live server by this session.
   0.1.6.2: Fixes seven more issues found while actually using 0.1.6.1's notification channels on
   a live server. (1) "Send Test" required clicking the page's Save button first, or it silently
   tested the last-saved config instead of what was currently typed — the button now saves the

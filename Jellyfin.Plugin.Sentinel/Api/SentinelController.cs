@@ -176,44 +176,40 @@ public class SentinelController : ControllerBase
     }
 
     /// <summary>
-    /// Marks this incident's user as an accepted exception — e.g. a user who intentionally always
-    /// transcodes via a GPU — so every incident for that user (any rule, any media item) stops
-    /// being surfaced as a problem needing attention, and future notifications for that user are
-    /// suppressed.
+    /// Gets every known diagnostic rule code together with its current admin-configured policy
+    /// ("Notify", the default, or "Expected") and its translated explanation — backs the
+    /// dashboard's rule-policy settings panel ("if: reason then: expected/notification").
     /// </summary>
-    /// <param name="id">The incident's ID.</param>
-    [HttpPost("incidents/{id}/except")]
+    /// <returns>Every known rule code with its Explanation and current Action.</returns>
+    [HttpGet("rules")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public ActionResult ExceptIncident(long id)
+    public ActionResult GetRules()
     {
-        var incident = _incidentRepository.GetRecent(500).FirstOrDefault(i => i.Id == id);
-        if (incident is null)
-        {
-            return NotFound();
-        }
+        var language = Plugin.Instance?.Configuration.Language ?? Localization.SupportedLanguage.En;
+        var expectedCodes = _incidentRepository.GetExpectedCodes();
 
-        _incidentRepository.MarkExcepted(incident.UserName, string.Empty);
-        return Ok();
+        var response = AllDiagnosticRules.All.Select(rule => new
+        {
+            rule.Code,
+            Explanation = _localizationService.Translate($"{rule.Code}_EXPLANATION", language),
+            Action = expectedCodes.Contains(rule.Code) ? "Expected" : "Notify"
+        });
+
+        return Ok(response);
     }
 
     /// <summary>
-    /// Removes the exception on this incident's user, so that user's incidents are treated as
-    /// normal problems again.
+    /// Sets whether a diagnostic rule code is treated as "Expected" (suppressing future
+    /// notifications for it, server-wide) or "Notify" (the default).
     /// </summary>
-    /// <param name="id">The incident's ID.</param>
-    [HttpPost("incidents/{id}/unexcept")]
+    /// <param name="code">The diagnostic rule code.</param>
+    /// <param name="request">The desired action ("Notify" or "Expected").</param>
+    [HttpPost("rules/{code}/policy")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public ActionResult UnexceptIncident(long id)
+    public ActionResult SetRulePolicy(string code, [FromBody] RulePolicyRequest request)
     {
-        var incident = _incidentRepository.GetRecent(500).FirstOrDefault(i => i.Id == id);
-        if (incident is null)
-        {
-            return NotFound();
-        }
-
-        _incidentRepository.ClearExcepted(incident.UserName);
+        var expected = string.Equals(request?.Action, "Expected", StringComparison.OrdinalIgnoreCase);
+        _incidentRepository.SetRulePolicy(code, expected);
         return Ok();
     }
 
@@ -239,13 +235,15 @@ public class SentinelController : ControllerBase
             "UI_NO_INCIDENTS", "UI_LOAD_INCIDENTS_FAILED",
             "UI_COL_USER", "UI_STATS_TOTAL", "UI_STATS_ACTIVE", "UI_FILTER_ALL", "UI_NO_INCIDENTS_FOR_FILTER",
             "UI_CLICK_FOR_DETAILS", "UI_NOTE_LABEL", "UI_NOTE_PLACEHOLDER", "UI_NOTE_SAVE_BUTTON", "UI_NOTE_SAVED",
-            "UI_MARK_EXCEPTION_BUTTON", "UI_UNMARK_EXCEPTION_BUTTON", "UI_FILTER_EXPECTED", "UI_EXCEPTED_BADGE",
+            "UI_EXCEPTED_BADGE",
             "UI_LANGUAGE_LABEL", "UI_NOTIFICATION_CHANNELS_HEADER", "UI_SAVE_BUTTON", "UI_ENABLE_LABEL",
-            "UI_MIN_SEVERITY_LABEL", "UI_SEND_TEST_BUTTON", "UI_SEVERITY_LOW", "UI_SEVERITY_MEDIUM", "UI_SEVERITY_HIGH",
-            "UI_WEBHOOK_URL_LABEL", "UI_DISCORD_WEBHOOK_URL_LABEL", "UI_TELEGRAM_BOT_TOKEN_LABEL", "UI_TELEGRAM_CHAT_ID_LABEL",
+            "UI_MIN_SEVERITY_LABEL", "UI_MIN_SEVERITY_HELP", "UI_SEND_TEST_BUTTON",
+            "UI_SEVERITY_INFO", "UI_SEVERITY_NOTICE", "UI_SEVERITY_WARNING", "UI_SEVERITY_IMPORTANT", "UI_SEVERITY_CRITICAL",
+            "UI_WEBHOOK_URL_LABEL", "UI_WEBHOOK_SECRET_LABEL", "UI_DISCORD_WEBHOOK_URL_LABEL", "UI_TELEGRAM_BOT_TOKEN_LABEL", "UI_TELEGRAM_CHAT_ID_LABEL",
             "UI_SMTP_HOST_LABEL", "UI_SMTP_PORT_LABEL", "UI_SMTP_USERNAME_LABEL", "UI_SMTP_PASSWORD_LABEL",
             "UI_EMAIL_FROM_LABEL", "UI_EMAIL_TO_LABEL",
-            "UI_TEST_SAVING", "UI_TEST_SENDING", "UI_TEST_SUCCESS", "UI_TEST_FAILURE_GENERIC", "UI_TEST_FAILURE_PREFIX"
+            "UI_TEST_SAVING", "UI_TEST_SENDING", "UI_TEST_SUCCESS", "UI_TEST_FAILURE_GENERIC", "UI_TEST_FAILURE_PREFIX",
+            "UI_RULE_POLICY_HEADER", "UI_RULE_POLICY_INTRO", "UI_POLICY_NOTIFY", "UI_POLICY_EXPECTED"
         };
 
         var result = keys.ToDictionary(key => key, key => _localizationService.Translate(key, language));
@@ -302,4 +300,13 @@ public sealed class IncidentNoteRequest
 {
     /// <summary>Gets or sets the note text.</summary>
     public string? Note { get; set; }
+}
+
+/// <summary>
+/// The request body for <see cref="SentinelController.SetRulePolicy"/>.
+/// </summary>
+public sealed class RulePolicyRequest
+{
+    /// <summary>Gets or sets the desired action: "Notify" or "Expected".</summary>
+    public string? Action { get; set; }
 }

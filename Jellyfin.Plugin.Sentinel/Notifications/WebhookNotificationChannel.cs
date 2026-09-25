@@ -12,8 +12,11 @@ namespace Jellyfin.Plugin.Sentinel.Notifications;
 /// </summary>
 public sealed partial class WebhookNotificationChannel : INotificationChannel
 {
+    private const string SecretHeaderName = "X-Sentinel-Secret";
+
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly Uri _webhookUrl;
+    private readonly string _secret;
     private readonly ILogger<WebhookNotificationChannel> _logger;
 
     /// <summary>
@@ -21,15 +24,18 @@ public sealed partial class WebhookNotificationChannel : INotificationChannel
     /// </summary>
     /// <param name="httpClientFactory">Used to create the named HTTP client registered for Sentinel's outbound notifications.</param>
     /// <param name="webhookUrl">The admin-configured destination URL.</param>
+    /// <param name="secret">An optional admin-configured shared secret, sent as the <see cref="SecretHeaderName"/> header on every request so the receiving endpoint can verify the request actually came from this Sentinel instance. Empty means no header is sent.</param>
     /// <param name="logger">The logger.</param>
     /// <exception cref="ArgumentNullException">Thrown when any parameter is null.</exception>
-    public WebhookNotificationChannel(IHttpClientFactory httpClientFactory, Uri webhookUrl, ILogger<WebhookNotificationChannel> logger)
+    public WebhookNotificationChannel(IHttpClientFactory httpClientFactory, Uri webhookUrl, string secret, ILogger<WebhookNotificationChannel> logger)
     {
         ArgumentNullException.ThrowIfNull(httpClientFactory);
         ArgumentNullException.ThrowIfNull(webhookUrl);
+        ArgumentNullException.ThrowIfNull(secret);
         ArgumentNullException.ThrowIfNull(logger);
         _httpClientFactory = httpClientFactory;
         _webhookUrl = webhookUrl;
+        _secret = secret;
         _logger = logger;
     }
 
@@ -47,7 +53,16 @@ public sealed partial class WebhookNotificationChannel : INotificationChannel
         try
         {
             var client = _httpClientFactory.CreateClient("Sentinel.Notifications");
-            using var response = await client.PostAsJsonAsync(_webhookUrl, message, cancellationToken).ConfigureAwait(false);
+            using var request = new HttpRequestMessage(HttpMethod.Post, _webhookUrl)
+            {
+                Content = JsonContent.Create(message)
+            };
+            if (!string.IsNullOrEmpty(_secret))
+            {
+                request.Headers.Add(SecretHeaderName, _secret);
+            }
+
+            using var response = await client.SendAsync(request, cancellationToken).ConfigureAwait(false);
 
             if (!response.IsSuccessStatusCode)
             {

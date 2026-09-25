@@ -337,7 +337,7 @@ public sealed partial class PlaybackCollectorHostedService : IHostedService
     private void RecordDiagnosis(long playbackEventId, Diagnosis diagnosis, PlaybackEvent playbackEvent)
     {
         var diagnosisId = _diagnosisRepository.Insert(playbackEventId, diagnosis);
-        var isExcepted = _incidentRepository.IsExcepted(playbackEvent.UserName);
+        var isExcepted = _incidentRepository.IsCodeExpected(diagnosis.Code);
         var upsertResult = _incidentRepository.UpsertOnDiagnosis(diagnosisId, diagnosis.Code, playbackEvent.ItemId, playbackEvent.Client, playbackEvent.DeviceName, playbackEvent.UserName, isExcepted);
         if (upsertResult.IsNewOrReopened && !upsertResult.IsExcepted)
         {

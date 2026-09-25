@@ -170,7 +170,7 @@ public sealed partial class NotificationDispatcher
         {
             Title = "Sentinel test notification",
             Body = "This is a test notification from Jellyfin Sentinel. If you received this, the channel is configured correctly.",
-            Severity = "low",
+            Severity = "info",
             IncidentUrl = string.Empty
         };
 
@@ -250,7 +250,7 @@ public sealed partial class NotificationDispatcher
     internal INotificationChannel? BuildChannelByName(string channelName, PluginConfiguration config) => channelName switch
     {
         "webhook" when Uri.TryCreate(config.WebhookUrl, UriKind.Absolute, out var webhookUri) =>
-            new WebhookNotificationChannel(_httpClientFactory, webhookUri, _loggerFactory.CreateLogger<WebhookNotificationChannel>()),
+            new WebhookNotificationChannel(_httpClientFactory, webhookUri, config.WebhookSecret, _loggerFactory.CreateLogger<WebhookNotificationChannel>()),
         "discord" when Uri.TryCreate(config.DiscordWebhookUrl, UriKind.Absolute, out var discordUri) =>
             new DiscordNotificationChannel(_httpClientFactory, discordUri, _loggerFactory.CreateLogger<DiscordNotificationChannel>()),
         "telegram" when !string.IsNullOrEmpty(config.TelegramBotToken) && !string.IsNullOrEmpty(config.TelegramChatId) =>
