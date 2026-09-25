@@ -15,7 +15,7 @@ public sealed class NotificationMessage
     /// <summary>Gets the notification's body text.</summary>
     public required string Body { get; init; }
 
-    /// <summary>Gets the severity level this notification maps to (e.g. "high", "medium", "low") — see the severity-mapping task for how this is derived from a diagnosis's confidence.</summary>
+    /// <summary>Gets the severity level this notification maps to ("info"/"notice"/"warning"/"important"/"critical") — see <see cref="NotificationSeverityMapper"/> for how this is derived from a diagnosis's confidence.</summary>
     public required string Severity { get; init; }
 
     /// <summary>Gets a deep link back to the dashboard for this incident, if one could be constructed.</summary>

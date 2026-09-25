@@ -53,13 +53,50 @@ public class WebhookNotificationChannelTests
             .Callback<HttpRequestMessage, CancellationToken>((request, _) => capturedRequest = request)
             .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK));
 
-        var channel = BuildChannelFromHandler(handlerMock, new Uri("https://example.com/hook/abc"));
+        var channel = BuildChannelFromHandler(handlerMock, new Uri("https://example.com/hook/abc"), string.Empty);
 
         await channel.SendAsync(BuildMessage(), CancellationToken.None);
 
         Assert.NotNull(capturedRequest);
         Assert.Equal(new Uri("https://example.com/hook/abc"), capturedRequest!.RequestUri);
         Assert.Equal(HttpMethod.Post, capturedRequest.Method);
+    }
+
+    [Fact]
+    public async Task SendAsync_AddsSecretHeader_WhenSecretIsConfigured()
+    {
+        HttpRequestMessage? capturedRequest = null;
+        var handlerMock = new Mock<HttpMessageHandler>();
+        handlerMock.Protected()
+            .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
+            .Callback<HttpRequestMessage, CancellationToken>((request, _) => capturedRequest = request)
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK));
+
+        var channel = BuildChannelFromHandler(handlerMock, new Uri("https://example.com/hook/abc"), "top-secret");
+
+        await channel.SendAsync(BuildMessage(), CancellationToken.None);
+
+        Assert.NotNull(capturedRequest);
+        Assert.True(capturedRequest!.Headers.TryGetValues("X-Sentinel-Secret", out var values));
+        Assert.Equal("top-secret", Assert.Single(values!));
+    }
+
+    [Fact]
+    public async Task SendAsync_OmitsSecretHeader_WhenSecretIsEmpty()
+    {
+        HttpRequestMessage? capturedRequest = null;
+        var handlerMock = new Mock<HttpMessageHandler>();
+        handlerMock.Protected()
+            .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
+            .Callback<HttpRequestMessage, CancellationToken>((request, _) => capturedRequest = request)
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK));
+
+        var channel = BuildChannelFromHandler(handlerMock, new Uri("https://example.com/hook/abc"), string.Empty);
+
+        await channel.SendAsync(BuildMessage(), CancellationToken.None);
+
+        Assert.NotNull(capturedRequest);
+        Assert.False(capturedRequest!.Headers.Contains("X-Sentinel-Secret"));
     }
 
     private static WebhookNotificationChannel BuildChannel(HttpStatusCode statusCode, bool throwException)
@@ -77,23 +114,23 @@ public class WebhookNotificationChannelTests
             setup.ReturnsAsync(new HttpResponseMessage(statusCode));
         }
 
-        return BuildChannelFromHandler(handlerMock, new Uri("https://example.com/hook"));
+        return BuildChannelFromHandler(handlerMock, new Uri("https://example.com/hook"), string.Empty);
     }
 
-    private static WebhookNotificationChannel BuildChannelFromHandler(Mock<HttpMessageHandler> handlerMock, Uri webhookUrl)
+    private static WebhookNotificationChannel BuildChannelFromHandler(Mock<HttpMessageHandler> handlerMock, Uri webhookUrl, string secret)
     {
         var httpClient = new HttpClient(handlerMock.Object);
         var factoryMock = new Mock<IHttpClientFactory>();
         factoryMock.Setup(f => f.CreateClient("Sentinel.Notifications")).Returns(httpClient);
 
-        return new WebhookNotificationChannel(factoryMock.Object, webhookUrl, NullLogger<WebhookNotificationChannel>.Instance);
+        return new WebhookNotificationChannel(factoryMock.Object, webhookUrl, secret, NullLogger<WebhookNotificationChannel>.Instance);
     }
 
     private static NotificationMessage BuildMessage() => new()
     {
         Title = "Test Incident",
         Body = "Something happened.",
-        Severity = "high",
+        Severity = "critical",
         IncidentUrl = "https://jellyfin.example.com/web/index.html#!/configurationpage?name=Sentinel"
     };
 }

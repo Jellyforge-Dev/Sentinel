@@ -156,7 +156,7 @@ public class TelegramNotificationChannelTests
         {
             Title = "Test Incident",
             Body = new string('x', 5000),
-            Severity = "high",
+            Severity = "critical",
             IncidentUrl = "https://jellyfin.example.com/web/index.html#!/configurationpage?name=Sentinel"
         };
 
@@ -187,7 +187,7 @@ public class TelegramNotificationChannelTests
         {
             Title = "Test Incident",
             Body = "Something happened.",
-            Severity = "high",
+            Severity = "critical",
             IncidentUrl = "http://example.com/incident/1"
         };
 
@@ -225,7 +225,7 @@ public class TelegramNotificationChannelTests
     {
         Title = "Test Incident",
         Body = "Something happened.",
-        Severity = "high",
+        Severity = "critical",
         IncidentUrl = "https://jellyfin.example.com/web/index.html#!/configurationpage?name=Sentinel"
     };
 }

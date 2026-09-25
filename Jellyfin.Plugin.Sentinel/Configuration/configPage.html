@@ -28,6 +28,7 @@
                     <details class="sentinelSettingsDetails">
                         <summary id="sentinelNotificationChannelsHeader">Notification Channels</summary>
                         <div class="sentinelSettingsBody">
+                            <p id="sentinelMinSeverityHelp" class="sentinelSettingsHelp">Only diagnoses at or above this severity are sent through that channel.</p>
                             <div class="sentinelChannelGrid">
                                 <div class="sentinelChannelCard sentinelChannelWebhook">
                                     <h3>Webhook</h3>
@@ -39,12 +40,18 @@
                                         <label class="inputLabel inputLabelUnfocused" for="WebhookUrl" id="sentinelWebhookUrlLabel">Webhook URL</label>
                                         <input is="emby-input" type="text" id="WebhookUrl" />
                                     </div>
+                                    <div class="inputContainer">
+                                        <label class="inputLabel inputLabelUnfocused" for="WebhookSecret" id="sentinelWebhookSecretLabel">Secret</label>
+                                        <input is="emby-input" type="password" id="WebhookSecret" />
+                                    </div>
                                     <div class="selectContainer">
                                         <label class="selectLabel sentinelMinSeverityLabel" for="WebhookMinSeverity">Minimum Severity</label>
                                         <select is="emby-select" id="WebhookMinSeverity" class="emby-select-withcolor emby-select">
-                                            <option value="low">Low</option>
-                                            <option value="medium">Medium</option>
-                                            <option value="high">High</option>
+                                            <option value="info">Info</option>
+                                            <option value="notice">Notice</option>
+                                            <option value="warning">Warning</option>
+                                            <option value="important">Important</option>
+                                            <option value="critical">Critical</option>
                                         </select>
                                     </div>
                                     <div class="sentinelChannelFooter">
@@ -66,9 +73,11 @@
                                     <div class="selectContainer">
                                         <label class="selectLabel sentinelMinSeverityLabel" for="DiscordMinSeverity">Minimum Severity</label>
                                         <select is="emby-select" id="DiscordMinSeverity" class="emby-select-withcolor emby-select">
-                                            <option value="low">Low</option>
-                                            <option value="medium">Medium</option>
-                                            <option value="high">High</option>
+                                            <option value="info">Info</option>
+                                            <option value="notice">Notice</option>
+                                            <option value="warning">Warning</option>
+                                            <option value="important">Important</option>
+                                            <option value="critical">Critical</option>
                                         </select>
                                     </div>
                                     <div class="sentinelChannelFooter">
@@ -94,9 +103,11 @@
                                     <div class="selectContainer">
                                         <label class="selectLabel sentinelMinSeverityLabel" for="TelegramMinSeverity">Minimum Severity</label>
                                         <select is="emby-select" id="TelegramMinSeverity" class="emby-select-withcolor emby-select">
-                                            <option value="low">Low</option>
-                                            <option value="medium">Medium</option>
-                                            <option value="high">High</option>
+                                            <option value="info">Info</option>
+                                            <option value="notice">Notice</option>
+                                            <option value="warning">Warning</option>
+                                            <option value="important">Important</option>
+                                            <option value="critical">Critical</option>
                                         </select>
                                     </div>
                                     <div class="sentinelChannelFooter">
@@ -138,9 +149,11 @@
                                     <div class="selectContainer">
                                         <label class="selectLabel sentinelMinSeverityLabel" for="EmailMinSeverity">Minimum Severity</label>
                                         <select is="emby-select" id="EmailMinSeverity" class="emby-select-withcolor emby-select">
-                                            <option value="low">Low</option>
-                                            <option value="medium">Medium</option>
-                                            <option value="high">High</option>
+                                            <option value="info">Info</option>
+                                            <option value="notice">Notice</option>
+                                            <option value="warning">Warning</option>
+                                            <option value="important">Important</option>
+                                            <option value="critical">Critical</option>
                                         </select>
                                     </div>
                                     <div class="sentinelChannelFooter">
@@ -149,6 +162,14 @@
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                    </details>
+
+                    <details class="sentinelSettingsDetails">
+                        <summary id="sentinelRulePolicyHeader">Rule Policy</summary>
+                        <div class="sentinelSettingsBody">
+                            <p id="sentinelRulePolicyIntro" class="sentinelSettingsHelp">Decide, per diagnosis reason, whether Sentinel should notify you or treat it as expected — applies everywhere that reason occurs, for everyone, not per incident.</p>
+                            <div id="sentinelRulePolicyList" class="sentinelRulePolicyList"></div>
                         </div>
                     </details>
 
@@ -206,6 +227,47 @@
                     .sentinelSettingsBody {
                         padding: 0 1em 1em;
                     }
+                    .sentinelSettingsHelp {
+                        opacity: 0.7;
+                        font-size: 0.85em;
+                        margin: 0 0 var(--sentinel-gap-md);
+                    }
+                    .sentinelRulePolicyList {
+                        display: flex;
+                        flex-direction: column;
+                        gap: var(--sentinel-gap-sm);
+                    }
+                    .sentinelRulePolicyRow {
+                        display: flex;
+                        flex-wrap: wrap;
+                        align-items: center;
+                        gap: 0.75em;
+                        background: var(--sentinel-surface-strong);
+                        border: 1px solid var(--sentinel-border);
+                        border-radius: var(--sentinel-radius);
+                        padding: 0.5em 0.85em;
+                    }
+                    .sentinelRulePolicyRow .sentinelRulePolicyCode {
+                        font-weight: 600;
+                        min-width: 14em;
+                    }
+                    .sentinelRulePolicyRow .sentinelRulePolicyExplanation {
+                        opacity: 0.75;
+                        font-size: 0.85em;
+                        flex: 1 1 16em;
+                    }
+                    .sentinelSeverityDot {
+                        display: inline-block;
+                        width: 0.65em;
+                        height: 0.65em;
+                        border-radius: 50%;
+                        margin-right: 0.4em;
+                    }
+                    .sentinelSeverityDot.sentinelSeverityInfo { background: #4a90d9; }
+                    .sentinelSeverityDot.sentinelSeverityNotice { background: #5fbf5f; }
+                    .sentinelSeverityDot.sentinelSeverityWarning { background: #e0c93a; }
+                    .sentinelSeverityDot.sentinelSeverityImportant { background: #e0a030; }
+                    .sentinelSeverityDot.sentinelSeverityCritical { background: #e05252; }
                     .sentinelChannelGrid {
                         display: grid;
                         grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -387,8 +449,7 @@
                     { key: 'All', labelKey: 'UI_FILTER_ALL', match: function () { return true; } },
                     { key: 'Active', labelKey: 'UI_STATS_ACTIVE', match: function (incident) { return (incident.Status === 'Detected' || incident.Status === 'Reopened') && !incident.IsExcepted; } },
                     { key: 'Acknowledged', labelKey: 'UI_STATUS_ACKNOWLEDGED', match: function (incident) { return incident.Status === 'Acknowledged'; } },
-                    { key: 'Resolved', labelKey: 'UI_STATUS_RESOLVED', match: function (incident) { return incident.Status === 'Resolved'; } },
-                    { key: 'Expected', labelKey: 'UI_FILTER_EXPECTED', match: function (incident) { return incident.IsExcepted === true; } }
+                    { key: 'Resolved', labelKey: 'UI_STATUS_RESOLVED', match: function (incident) { return incident.Status === 'Resolved'; } }
                 ];
                 var uiStringsDefaults = {
                     UI_TITLE: 'Jellyfin Sentinel',
@@ -421,15 +482,37 @@
                     UI_STATS_TOTAL: 'Total',
                     UI_STATS_ACTIVE: 'Active',
                     UI_FILTER_ALL: 'All',
-                    UI_NO_INCIDENTS_FOR_FILTER: 'No incidents match this filter.'
+                    UI_NO_INCIDENTS_FOR_FILTER: 'No incidents match this filter.',
+                    UI_MIN_SEVERITY_HELP: 'Only diagnoses at or above this severity are sent through that channel.',
+                    UI_SEVERITY_INFO: 'Info',
+                    UI_SEVERITY_NOTICE: 'Notice',
+                    UI_SEVERITY_WARNING: 'Warning',
+                    UI_SEVERITY_IMPORTANT: 'Important',
+                    UI_SEVERITY_CRITICAL: 'Critical',
+                    UI_WEBHOOK_SECRET_LABEL: 'Secret',
+                    UI_RULE_POLICY_HEADER: 'Rule Policy',
+                    UI_RULE_POLICY_INTRO: 'Decide, per diagnosis reason, whether Sentinel should notify you or treat it as expected — applies everywhere that reason occurs, for everyone, not per incident.',
+                    UI_POLICY_NOTIFY: 'Notify',
+                    UI_POLICY_EXPECTED: 'Expected'
                 };
 
                 function getUiString(key) {
                     return uiStrings[key] || uiStringsDefaults[key];
                 }
 
+                // Order matches the five-level legend drawn in Sentinel's own logo artwork
+                // (Info=blue/Notice=green/Warning=yellow/Important=orange/Critical=red), and the
+                // string values match NotificationSeverityMapper's exact vocabulary server-side.
+                var SEVERITY_LEVELS = [
+                    { value: 'info', labelKey: 'UI_SEVERITY_INFO' },
+                    { value: 'notice', labelKey: 'UI_SEVERITY_NOTICE' },
+                    { value: 'warning', labelKey: 'UI_SEVERITY_WARNING' },
+                    { value: 'important', labelKey: 'UI_SEVERITY_IMPORTANT' },
+                    { value: 'critical', labelKey: 'UI_SEVERITY_CRITICAL' }
+                ];
+
                 var NOTIFICATION_TEXT_FIELD_IDS = [
-                    'WebhookUrl', 'DiscordWebhookUrl',
+                    'WebhookUrl', 'WebhookSecret', 'DiscordWebhookUrl',
                     'TelegramBotToken', 'TelegramChatId',
                     'EmailSmtpHost', 'EmailSmtpUsername', 'EmailSmtpPassword', 'EmailFromAddress', 'EmailToAddress',
                     'WebhookMinSeverity', 'DiscordMinSeverity', 'TelegramMinSeverity', 'EmailMinSeverity'
@@ -568,20 +651,21 @@
                     document.querySelectorAll('.sentinelMinSeverityLabel').forEach(function (el) {
                         el.textContent = getUiString('UI_MIN_SEVERITY_LABEL');
                     });
+                    document.querySelector('#sentinelMinSeverityHelp').textContent = getUiString('UI_MIN_SEVERITY_HELP');
                     document.querySelectorAll('.sentinelTestButton').forEach(function (el) {
                         el.textContent = getUiString('UI_SEND_TEST_BUTTON');
                     });
-                    document.querySelectorAll('select[id$="MinSeverity"] option[value="low"]').forEach(function (el) {
-                        el.textContent = getUiString('UI_SEVERITY_LOW');
-                    });
-                    document.querySelectorAll('select[id$="MinSeverity"] option[value="medium"]').forEach(function (el) {
-                        el.textContent = getUiString('UI_SEVERITY_MEDIUM');
-                    });
-                    document.querySelectorAll('select[id$="MinSeverity"] option[value="high"]').forEach(function (el) {
-                        el.textContent = getUiString('UI_SEVERITY_HIGH');
+                    SEVERITY_LEVELS.forEach(function (level) {
+                        document.querySelectorAll('select[id$="MinSeverity"] option[value="' + level.value + '"]').forEach(function (el) {
+                            el.textContent = getUiString(level.labelKey);
+                        });
                     });
 
+                    document.querySelector('#sentinelRulePolicyHeader').textContent = getUiString('UI_RULE_POLICY_HEADER');
+                    document.querySelector('#sentinelRulePolicyIntro').textContent = getUiString('UI_RULE_POLICY_INTRO');
+
                     document.querySelector('#sentinelWebhookUrlLabel').textContent = getUiString('UI_WEBHOOK_URL_LABEL');
+                    document.querySelector('#sentinelWebhookSecretLabel').textContent = getUiString('UI_WEBHOOK_SECRET_LABEL');
                     document.querySelector('#sentinelDiscordWebhookUrlLabel').textContent = getUiString('UI_DISCORD_WEBHOOK_URL_LABEL');
                     document.querySelector('#sentinelTelegramBotTokenLabel').textContent = getUiString('UI_TELEGRAM_BOT_TOKEN_LABEL');
                     document.querySelector('#sentinelTelegramChatIdLabel').textContent = getUiString('UI_TELEGRAM_CHAT_ID_LABEL');
@@ -761,16 +845,6 @@
                         actions.appendChild(resolveButton);
                     }
 
-                    var exceptionButton = document.createElement('button');
-                    exceptionButton.setAttribute('is', 'emby-button');
-                    exceptionButton.className = 'raised';
-                    exceptionButton.textContent = incident.IsExcepted ? getUiString('UI_UNMARK_EXCEPTION_BUTTON') : getUiString('UI_MARK_EXCEPTION_BUTTON');
-                    exceptionButton.addEventListener('click', function (event) {
-                        event.stopPropagation();
-                        postIncidentAction(incident.Id, incident.IsExcepted ? 'unexcept' : 'except', loadIncidents);
-                    });
-                    actions.appendChild(exceptionButton);
-
                     card.appendChild(header);
                     card.appendChild(meta);
                     card.appendChild(actions);
@@ -832,6 +906,62 @@
                     });
                 }
 
+                function humanizeRuleCode(code) {
+                    return code.split('_').map(function (word) {
+                        return word.charAt(0) + word.slice(1).toLowerCase();
+                    }).join(' ');
+                }
+
+                function buildRulePolicyRow(rule) {
+                    var row = document.createElement('div');
+                    row.className = 'sentinelRulePolicyRow';
+
+                    var code = document.createElement('span');
+                    code.className = 'sentinelRulePolicyCode';
+                    code.textContent = humanizeRuleCode(rule.Code);
+                    row.appendChild(code);
+
+                    var explanation = document.createElement('span');
+                    explanation.className = 'sentinelRulePolicyExplanation';
+                    explanation.textContent = rule.Explanation || '';
+                    row.appendChild(explanation);
+
+                    var select = document.createElement('select');
+                    select.setAttribute('is', 'emby-select');
+                    select.className = 'emby-select-withcolor emby-select';
+
+                    [{ value: 'Notify', labelKey: 'UI_POLICY_NOTIFY' }, { value: 'Expected', labelKey: 'UI_POLICY_EXPECTED' }].forEach(function (option) {
+                        var optionEl = document.createElement('option');
+                        optionEl.value = option.value;
+                        optionEl.textContent = getUiString(option.labelKey);
+                        select.appendChild(optionEl);
+                    });
+                    select.value = rule.Action;
+
+                    select.addEventListener('change', function () {
+                        var url = ApiClient.getUrl('Sentinel/rules/' + encodeURIComponent(rule.Code) + '/policy');
+                        ApiClient.ajax({ type: 'POST', url: url, data: JSON.stringify({ Action: select.value }), contentType: 'application/json' }).then(loadIncidents);
+                    });
+                    row.appendChild(select);
+
+                    return row;
+                }
+
+                function loadRulePolicies() {
+                    var url = ApiClient.getUrl('Sentinel/rules');
+
+                    ApiClient.ajax({ type: 'GET', url: url, dataType: 'json' }).then(function (rules) {
+                        var container = document.querySelector('#sentinelRulePolicyList');
+                        container.innerHTML = '';
+                        (rules || []).forEach(function (rule) {
+                            container.appendChild(buildRulePolicyRow(rule));
+                        });
+                    }).catch(function () {
+                        // Non-fatal — the rest of the page (incidents, notification settings)
+                        // still works if this section fails to load.
+                    });
+                }
+
                 function loadIncidents() {
                     var url = ApiClient.getUrl('Sentinel/incidents');
 
@@ -878,6 +1008,7 @@
                 document.querySelector('#SentinelConfigPage').addEventListener('pageshow', function () {
                     loadUiStrings();
                     loadIncidents();
+                    loadRulePolicies();
                     loadLanguageSetting();
                     wireTestSendButtons();
                 });

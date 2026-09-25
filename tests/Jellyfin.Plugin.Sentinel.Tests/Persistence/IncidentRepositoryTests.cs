@@ -159,54 +159,52 @@ public class IncidentRepositoryTests : IDisposable
     }
 
     [Fact]
-    public void IsExcepted_ReturnsFalse_WhenNoMatchingExceptionExists()
+    public void IsCodeExpected_ReturnsFalse_WhenNoPolicyExistsForCode()
     {
-        Assert.False(_incidentRepository.IsExcepted("Alice"));
+        Assert.False(_incidentRepository.IsCodeExpected("BUFFERING"));
     }
 
     [Fact]
-    public void MarkExcepted_MakesIsExceptedTrue_ForUser_ButNotForOtherUsers()
+    public void SetRulePolicy_MakesIsCodeExpectedTrue_ForThatCode_ButNotForOtherCodes()
     {
-        Assert.False(_incidentRepository.IsExcepted("Alice"));
+        Assert.False(_incidentRepository.IsCodeExpected("BUFFERING"));
 
-        _incidentRepository.MarkExcepted("Alice", "Uses a GPU for transcoding intentionally.");
+        _incidentRepository.SetRulePolicy("BUFFERING", expected: true);
 
-        Assert.True(_incidentRepository.IsExcepted("Alice"));
-        Assert.False(_incidentRepository.IsExcepted("Bob"));
+        Assert.True(_incidentRepository.IsCodeExpected("BUFFERING"));
+        Assert.False(_incidentRepository.IsCodeExpected("AUDIO_CHANNEL_DOWNMIX"));
     }
 
     [Fact]
-    public void MarkExcepted_CoversEveryRuleCode_ForThatUser_NotJustTheOneItWasMarkedFrom()
+    public void SetRulePolicy_AppliesServerWide_RegardlessOfWhichUserTriggersTheDiagnosis()
     {
-        // The whole point of scoping by user alone rather than (code, user): a user who
-        // intentionally transcodes trips different rule codes on different titles, and marking
-        // one exception must cover all of them, not just the code it happened to be raised for.
-        Assert.False(_incidentRepository.IsExcepted("Alice"));
+        // The whole point of scoping by rule code alone (not user, not media item): the policy is
+        // a fixed, admin-configured rule ("if: this reason then: expected"), not tied to who
+        // triggered it.
+        _incidentRepository.SetRulePolicy("AUDIO_CHANNEL_DOWNMIX", expected: true);
 
-        _incidentRepository.MarkExcepted("Alice", string.Empty);
+        var aliceItemId = Guid.NewGuid().ToString();
+        var aliceDiagnosisId = InsertDiagnosis("AUDIO_CHANNEL_DOWNMIX", "session-a", "Fire TV", "Living Room", aliceItemId);
+        var isExceptedForAlice = _incidentRepository.IsCodeExpected("AUDIO_CHANNEL_DOWNMIX");
+        var aliceResult = _incidentRepository.UpsertOnDiagnosis(aliceDiagnosisId, "AUDIO_CHANNEL_DOWNMIX", aliceItemId, "Fire TV", "Living Room", "Alice", isExceptedForAlice);
 
-        var firstItemId = Guid.NewGuid().ToString();
-        var firstDiagnosisId = InsertDiagnosis("AUDIO_CHANNEL_DOWNMIX", "session-a", "Fire TV", "Living Room", firstItemId);
-        var isExceptedForFirstCode = _incidentRepository.IsExcepted("Alice");
-        var firstResult = _incidentRepository.UpsertOnDiagnosis(firstDiagnosisId, "AUDIO_CHANNEL_DOWNMIX", firstItemId, "Fire TV", "Living Room", "Alice", isExceptedForFirstCode);
+        var bobItemId = Guid.NewGuid().ToString();
+        var bobDiagnosisId = InsertDiagnosis("AUDIO_CHANNEL_DOWNMIX", "session-b", "Shield TV", "Bedroom", bobItemId);
+        var isExceptedForBob = _incidentRepository.IsCodeExpected("AUDIO_CHANNEL_DOWNMIX");
+        var bobResult = _incidentRepository.UpsertOnDiagnosis(bobDiagnosisId, "AUDIO_CHANNEL_DOWNMIX", bobItemId, "Shield TV", "Bedroom", "Bob", isExceptedForBob);
 
-        var secondItemId = Guid.NewGuid().ToString();
-        var secondDiagnosisId = InsertDiagnosis("HDR_TONE_MAPPING_TRANSCODE", "session-b", "Fire TV", "Living Room", secondItemId);
-        var isExceptedForSecondCode = _incidentRepository.IsExcepted("Alice");
-        var secondResult = _incidentRepository.UpsertOnDiagnosis(secondDiagnosisId, "HDR_TONE_MAPPING_TRANSCODE", secondItemId, "Fire TV", "Living Room", "Alice", isExceptedForSecondCode);
-
-        Assert.True(firstResult.IsExcepted);
-        Assert.True(secondResult.IsExcepted);
+        Assert.True(aliceResult.IsExcepted);
+        Assert.True(bobResult.IsExcepted);
     }
 
     [Fact]
-    public void MarkExcepted_RetroactivelyMarksAlreadyOpenIncidents_AsExcepted()
+    public void SetRulePolicy_RetroactivelyMarksAlreadyOpenIncidents_AsExcepted()
     {
         var itemId = Guid.NewGuid().ToString();
         var diagnosisId = InsertDiagnosis("BUFFERING", "session-a", "Fire TV", "Living Room", itemId);
         _incidentRepository.UpsertOnDiagnosis(diagnosisId, "BUFFERING", itemId, "Fire TV", "Living Room", "Alice", false);
 
-        _incidentRepository.MarkExcepted("Alice", string.Empty);
+        _incidentRepository.SetRulePolicy("BUFFERING", expected: true);
 
         var recent = _incidentRepository.GetRecent(50);
 
@@ -225,17 +223,30 @@ public class IncidentRepositoryTests : IDisposable
     }
 
     [Fact]
-    public void ClearExcepted_MakesIsExceptedFalse_ForMatchingIncidentsAndFutureUpserts()
+    public void SetRulePolicy_MakesIsCodeExpectedFalse_ForMatchingIncidentsAndFutureUpserts_WhenResetToNotify()
     {
         var itemId = Guid.NewGuid().ToString();
         var diagnosisId = InsertDiagnosis("BUFFERING", "session-a", "Fire TV", "Living Room", itemId);
         _incidentRepository.UpsertOnDiagnosis(diagnosisId, "BUFFERING", itemId, "Fire TV", "Living Room", "Alice", false);
-        _incidentRepository.MarkExcepted("Alice", string.Empty);
+        _incidentRepository.SetRulePolicy("BUFFERING", expected: true);
 
-        _incidentRepository.ClearExcepted("Alice");
+        _incidentRepository.SetRulePolicy("BUFFERING", expected: false);
 
-        Assert.False(_incidentRepository.IsExcepted("Alice"));
+        Assert.False(_incidentRepository.IsCodeExpected("BUFFERING"));
         Assert.False(_incidentRepository.GetRecent(50)[0].IsExcepted);
+    }
+
+    [Fact]
+    public void GetExpectedCodes_ReturnsOnlyCodesCurrentlyMarkedExpected()
+    {
+        _incidentRepository.SetRulePolicy("BUFFERING", expected: true);
+        _incidentRepository.SetRulePolicy("AUDIO_CHANNEL_DOWNMIX", expected: true);
+        _incidentRepository.SetRulePolicy("AUDIO_CHANNEL_DOWNMIX", expected: false);
+
+        var expectedCodes = _incidentRepository.GetExpectedCodes();
+
+        Assert.Single(expectedCodes);
+        Assert.Contains("BUFFERING", expectedCodes);
     }
 
     private long InsertDiagnosis(string code, string sessionId, string client, string deviceName, string itemId)

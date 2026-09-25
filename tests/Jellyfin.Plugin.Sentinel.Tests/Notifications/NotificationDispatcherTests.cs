@@ -60,7 +60,7 @@ public class NotificationDispatcherTests
         {
             Title = "Sentinel: 1 plugin update(s) available",
             Body = "Some Plugin v1.2.3",
-            Severity = "low",
+            Severity = "info",
             IncidentUrl = string.Empty
         };
 
@@ -178,31 +178,31 @@ public class NotificationDispatcherTests
         {
             WebhookEnabled = true,
             WebhookUrl = "https://example.com/webhook",
-            WebhookMinSeverity = "low",
+            WebhookMinSeverity = "info",
 
             DiscordEnabled = true,
             DiscordWebhookUrl = "https://discord.com/api/webhooks/1/abc",
-            DiscordMinSeverity = "medium",
+            DiscordMinSeverity = "warning",
 
             TelegramEnabled = true,
             TelegramBotToken = "bot-token",
             TelegramChatId = "chat-id",
-            TelegramMinSeverity = "high",
+            TelegramMinSeverity = "critical",
 
             EmailEnabled = true,
             EmailSmtpHost = "smtp.example.com",
             EmailFromAddress = "sentinel@example.com",
             EmailToAddress = "admin@example.com",
-            EmailMinSeverity = "low"
+            EmailMinSeverity = "notice"
         };
 
         var enabledChannels = dispatcher.BuildEnabledChannels(config).ToList();
 
         Assert.Equal(4, enabledChannels.Count);
-        Assert.Equal("low", enabledChannels.Single(c => c.Channel.ChannelName == "Webhook").MinSeverity);
-        Assert.Equal("medium", enabledChannels.Single(c => c.Channel.ChannelName == "Discord").MinSeverity);
-        Assert.Equal("high", enabledChannels.Single(c => c.Channel.ChannelName == "Telegram").MinSeverity);
-        Assert.Equal("low", enabledChannels.Single(c => c.Channel.ChannelName == "Email").MinSeverity);
+        Assert.Equal("info", enabledChannels.Single(c => c.Channel.ChannelName == "Webhook").MinSeverity);
+        Assert.Equal("warning", enabledChannels.Single(c => c.Channel.ChannelName == "Discord").MinSeverity);
+        Assert.Equal("critical", enabledChannels.Single(c => c.Channel.ChannelName == "Telegram").MinSeverity);
+        Assert.Equal("notice", enabledChannels.Single(c => c.Channel.ChannelName == "Email").MinSeverity);
     }
 
     [Fact]
