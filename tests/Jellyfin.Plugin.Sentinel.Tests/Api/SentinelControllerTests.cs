@@ -44,6 +44,7 @@ public class SentinelControllerTests : IDisposable
             new Mock<IHttpClientFactory>().Object,
             NullLoggerFactory.Instance,
             _localizationService,
+            _incidentRepository,
             NullLogger<NotificationDispatcher>.Instance);
 
         var libraryManagerMock = new Mock<ILibraryManager>();
@@ -306,6 +307,41 @@ public class SentinelControllerTests : IDisposable
         var objectResult = Assert.IsType<ObjectResult>(result);
         Assert.Equal(StatusCodes.Status502BadGateway, objectResult.StatusCode);
         Assert.NotNull(objectResult.Value);
+    }
+
+    [Fact]
+    public void GetRules_ReturnsEveryKnownCode_WithItsDefaultSeverity_WhenNoOverrideIsSet()
+    {
+        var result = Assert.IsType<OkObjectResult>(_controller.GetRules());
+        var rules = Assert.IsAssignableFrom<IEnumerable<object>>(result.Value).ToList();
+
+        var videoCodecRule = rules.Single(r => (string)r.GetType().GetProperty("Code")!.GetValue(r)! == "VIDEO_CODEC_UNSUPPORTED");
+        Assert.Equal("Notify", videoCodecRule.GetType().GetProperty("Action")!.GetValue(videoCodecRule));
+
+        // VIDEO_CODEC_UNSUPPORTED is a Confidence.Confirmed rule, which maps to "critical" —
+        // the default, unoverridden effective severity.
+        Assert.Equal("critical", videoCodecRule.GetType().GetProperty("Severity")!.GetValue(videoCodecRule));
+    }
+
+    [Fact]
+    public void SetRulePolicy_UpdatesTheEffectiveSeverity_ReturnedByGetRules()
+    {
+        var setResult = _controller.SetRulePolicy("VIDEO_CODEC_UNSUPPORTED", new RulePolicyRequest { Action = "Notify", Severity = "notice" });
+        Assert.IsType<OkResult>(setResult);
+
+        var getResult = Assert.IsType<OkObjectResult>(_controller.GetRules());
+        var rules = Assert.IsAssignableFrom<IEnumerable<object>>(getResult.Value).ToList();
+        var videoCodecRule = rules.Single(r => (string)r.GetType().GetProperty("Code")!.GetValue(r)! == "VIDEO_CODEC_UNSUPPORTED");
+
+        Assert.Equal("notice", videoCodecRule.GetType().GetProperty("Severity")!.GetValue(videoCodecRule));
+    }
+
+    [Fact]
+    public void SetRulePolicy_DoesNotPersistAnOverride_WhenSeverityMatchesTheRulesOwnDefault()
+    {
+        _controller.SetRulePolicy("VIDEO_CODEC_UNSUPPORTED", new RulePolicyRequest { Action = "Notify", Severity = "critical" });
+
+        Assert.Null(_incidentRepository.GetSeverityOverride("VIDEO_CODEC_UNSUPPORTED"));
     }
 
     public void Dispose()

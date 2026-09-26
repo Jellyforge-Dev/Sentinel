@@ -57,6 +57,7 @@ public class PlaybackCollectorHostedServiceTests : IDisposable
             new Mock<IHttpClientFactory>().Object,
             NullLoggerFactory.Instance,
             new LocalizationService(),
+            incidentRepository,
             NullLogger<NotificationDispatcher>.Instance);
 
         return new PlaybackCollectorHostedService(

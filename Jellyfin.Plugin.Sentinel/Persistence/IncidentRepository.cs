@@ -230,6 +230,31 @@ public sealed class IncidentRepository
     }
 
     /// <summary>
+    /// Gets the admin-configured severity override for a diagnostic rule code, if one has been set.
+    /// A rule's default severity otherwise comes from <see cref="Notifications.NotificationSeverityMapper.FromConfidence"/>
+    /// on the rule's own fixed <see cref="Domain.Confidence"/> — this override lets an admin decide
+    /// a specific rule matters more or less than its author's original confidence level implies.
+    /// </summary>
+    /// <param name="code">The diagnostic rule code.</param>
+    /// <returns>The overridden severity ("info"/"notice"/"warning"/"important"/"critical"), or null if no override is configured for this code.</returns>
+    public string? GetSeverityOverride(string code)
+    {
+        using var connection = _database.OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT Severity FROM RulePolicy WHERE Code = $code;";
+        command.Parameters.AddWithValue("$code", code);
+
+        var result = command.ExecuteScalar();
+        if (result is null or DBNull)
+        {
+            return null;
+        }
+
+        var severity = (string)result;
+        return string.IsNullOrEmpty(severity) ? null : severity;
+    }
+
+    /// <summary>
     /// Sets or replaces an incident's resolution note — free text on what ultimately fixed the
     /// underlying problem for the user, e.g. "enabled hardware transcoding".
     /// </summary>
@@ -257,33 +282,36 @@ public sealed class IncidentRepository
     /// </summary>
     /// <param name="code">The diagnostic rule code.</param>
     /// <param name="expected">True to mark this code "Expected" (suppressed); false to reset it to the default "Notify".</param>
-    public void SetRulePolicy(string code, bool expected)
+    /// <param name="severityOverride">An optional severity ("info"/"notice"/"warning"/"important"/"critical") to use instead of this rule's own default; null or empty clears any existing override.</param>
+    public void SetRulePolicy(string code, bool expected, string? severityOverride = null)
     {
         using var connection = _database.OpenConnection();
         using var transaction = connection.BeginTransaction();
+
+        var hasSeverityOverride = !string.IsNullOrEmpty(severityOverride);
 
         using (var writeCommand = connection.CreateCommand())
         {
             writeCommand.Transaction = transaction;
 
-            // CA2100 flags this ternary the same way it flags the identical pattern in
-            // IncidentRepository.UpsertOnDiagnosis — neither branch incorporates caller-supplied
-            // text, only parameter placeholders bound below.
-#pragma warning disable CA2100
-            writeCommand.CommandText = expected
-                ? """
-                  INSERT INTO RulePolicy (Code, Action, CreatedAtUtc)
-                  VALUES ($code, 'Expected', $now)
-                  ON CONFLICT (Code) DO UPDATE SET Action = 'Expected';
-                  """
-                : "DELETE FROM RulePolicy WHERE Code = $code;";
-#pragma warning restore CA2100
-            writeCommand.Parameters.AddWithValue("$code", code);
-            if (expected)
+            if (expected || hasSeverityOverride)
             {
+                writeCommand.CommandText =
+                    """
+                    INSERT INTO RulePolicy (Code, Action, Severity, CreatedAtUtc)
+                    VALUES ($code, $action, $severity, $now)
+                    ON CONFLICT (Code) DO UPDATE SET Action = excluded.Action, Severity = excluded.Severity;
+                    """;
+                writeCommand.Parameters.AddWithValue("$action", expected ? "Expected" : "Notify");
+                writeCommand.Parameters.AddWithValue("$severity", severityOverride ?? string.Empty);
                 writeCommand.Parameters.AddWithValue("$now", DateTime.UtcNow.ToString("O"));
             }
+            else
+            {
+                writeCommand.CommandText = "DELETE FROM RulePolicy WHERE Code = $code;";
+            }
 
+            writeCommand.Parameters.AddWithValue("$code", code);
             writeCommand.ExecuteNonQuery();
         }
 

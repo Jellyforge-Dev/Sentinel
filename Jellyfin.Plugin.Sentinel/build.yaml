@@ -1,7 +1,7 @@
 ---
 name: "Sentinel"
 guid: "4b5e3a79-7798-4066-841e-db7eb0125dc9"
-version: "0.1.6.3"
+version: "0.1.6.4"
 targetAbi: "12.1.0.0"
 framework: "net10.0"
 overview: "Evidence-based root-cause diagnosis for Jellyfin playback problems"
@@ -72,6 +72,22 @@ artifacts:
 - "runtimes/osx-x64/native/libe_sqlite3.dylib"
 - "runtimes/osx-arm64/native/libe_sqlite3.dylib"
 changelog: >
+  0.1.6.4: Two follow-ups from testing 0.1.6.3's new Rule Policy panel on a live server. (1) The
+  Rule Policy panel could only set Notify/Expected per rule, not the actual severity/color shown
+  for it — added a second per-rule Severity dropdown (with a live color dot) so an admin can
+  override a rule's default severity (e.g. downgrade a noisy Confirmed-confidence rule from
+  Critical to Notice) independently of whether it notifies. Stored in a new RulePolicy.Severity
+  column; only persisted as an explicit override when it actually differs from the rule's own
+  default, so untouched rules don't grow permanent rows. (2) The severity/status was only visible
+  as a color on Discord's embed — plain-text channels (Webhook/Telegram/Email) gave no textual
+  indication of how serious a diagnosis was. Every diagnosis-triggered notification's title now
+  includes the effective severity label in the admin's configured language (reusing the same
+  UI_SEVERITY_* strings already shown in the dashboard, no new translation keys needed), e.g.
+  "Sentinel [Critical]: VIDEO_CODEC_UNSUPPORTED". NotificationDispatcher now depends on
+  IncidentRepository to resolve the per-rule override at dispatch time. Verified: full local build
+  and test suite (187/187 passing, 0 warnings/errors); new tests cover the severity-override
+  persistence/clearing logic and the GetRules/SetRulePolicy severity round-trip. NOT yet confirmed
+  in a real browser against a live server by this session.
   0.1.6.3: Addresses live-server feedback on 0.1.6.2's notification/exception feature set, plus a
   logo fix and outbound webhook security. (1) Severity is now the five-level Info/Notice/Warning/
   Important/Critical scheme already drawn in Sentinel's own logo artwork, replacing the previous

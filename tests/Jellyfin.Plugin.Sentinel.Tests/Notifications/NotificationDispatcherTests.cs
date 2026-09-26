@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading;
@@ -7,18 +8,39 @@ using Jellyfin.Plugin.Sentinel.Configuration;
 using Jellyfin.Plugin.Sentinel.Domain;
 using Jellyfin.Plugin.Sentinel.Localization;
 using Jellyfin.Plugin.Sentinel.Notifications;
+using Jellyfin.Plugin.Sentinel.Persistence;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
 
 namespace Jellyfin.Plugin.Sentinel.Tests.Notifications;
 
-public class NotificationDispatcherTests
+public class NotificationDispatcherTests : IDisposable
 {
-    private static NotificationDispatcher CreateDispatcher() => new(
+    private readonly string _databasePath = Path.Combine(Path.GetTempPath(), $"sentinel-notification-dispatcher-test-{Guid.NewGuid()}.db");
+    private readonly SentinelDatabase _database;
+
+    public NotificationDispatcherTests()
+    {
+        _database = new SentinelDatabase(_databasePath);
+    }
+
+    public void Dispose()
+    {
+        SqliteConnection.ClearAllPools();
+
+        if (File.Exists(_databasePath))
+        {
+            File.Delete(_databasePath);
+        }
+    }
+
+    private NotificationDispatcher CreateDispatcher() => new(
         new Mock<IHttpClientFactory>().Object,
         NullLoggerFactory.Instance,
         new LocalizationService(),
+        new IncidentRepository(_database),
         NullLogger<NotificationDispatcher>.Instance);
 
     [Fact]

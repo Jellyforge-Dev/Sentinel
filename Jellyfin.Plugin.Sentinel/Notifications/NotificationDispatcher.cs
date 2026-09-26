@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Jellyfin.Plugin.Sentinel.Configuration;
 using Jellyfin.Plugin.Sentinel.Domain;
 using Jellyfin.Plugin.Sentinel.Localization;
+using Jellyfin.Plugin.Sentinel.Persistence;
 using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.Sentinel.Notifications;
@@ -28,6 +29,7 @@ public sealed partial class NotificationDispatcher
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILoggerFactory _loggerFactory;
     private readonly LocalizationService _localizationService;
+    private readonly IncidentRepository _incidentRepository;
     private readonly ILogger<NotificationDispatcher> _logger;
 
     /// <summary>
@@ -36,17 +38,20 @@ public sealed partial class NotificationDispatcher
     /// <param name="httpClientFactory">Used to construct HTTP-based channels.</param>
     /// <param name="loggerFactory">Used to construct each channel's own typed logger.</param>
     /// <param name="localizationService">Used to translate the diagnosis code into an explanation.</param>
+    /// <param name="incidentRepository">Used to look up an admin-configured severity override for the firing rule's code.</param>
     /// <param name="logger">The logger.</param>
     /// <exception cref="ArgumentNullException">Thrown when any parameter is null.</exception>
-    public NotificationDispatcher(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, LocalizationService localizationService, ILogger<NotificationDispatcher> logger)
+    public NotificationDispatcher(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, LocalizationService localizationService, IncidentRepository incidentRepository, ILogger<NotificationDispatcher> logger)
     {
         ArgumentNullException.ThrowIfNull(httpClientFactory);
         ArgumentNullException.ThrowIfNull(loggerFactory);
         ArgumentNullException.ThrowIfNull(localizationService);
+        ArgumentNullException.ThrowIfNull(incidentRepository);
         ArgumentNullException.ThrowIfNull(logger);
         _httpClientFactory = httpClientFactory;
         _loggerFactory = loggerFactory;
         _localizationService = localizationService;
+        _incidentRepository = incidentRepository;
         _logger = logger;
     }
 
@@ -72,13 +77,14 @@ public sealed partial class NotificationDispatcher
                 return;
             }
 
-            var severity = NotificationSeverityMapper.FromConfidence(diagnosis.Confidence);
+            var severity = _incidentRepository.GetSeverityOverride(diagnosis.Code) ?? NotificationSeverityMapper.FromConfidence(diagnosis.Confidence);
+            var severityLabel = _localizationService.Translate($"UI_SEVERITY_{severity.ToUpperInvariant()}", config.Language);
             var explanation = _localizationService.Translate($"{diagnosis.Code}_EXPLANATION", config.Language);
             var recommendation = _localizationService.Translate($"{diagnosis.Code}_RECOMMENDATION", config.Language);
 
             var message = new NotificationMessage
             {
-                Title = $"Sentinel: {diagnosis.Code}",
+                Title = $"Sentinel [{severityLabel}]: {diagnosis.Code}",
                 Body = BuildBody(explanation, recommendation, playbackEvent),
                 Severity = severity,
 

@@ -114,6 +114,7 @@ public sealed class SentinelDatabase
             CREATE TABLE IF NOT EXISTS RulePolicy (
                 Code TEXT NOT NULL PRIMARY KEY,
                 Action TEXT NOT NULL,
+                Severity TEXT NOT NULL DEFAULT '',
                 CreatedAtUtc TEXT NOT NULL
             );
             """;
@@ -126,6 +127,7 @@ public sealed class SentinelDatabase
         AddColumnIfMissing(connection, "Incident", "UserName", "UserName TEXT NOT NULL DEFAULT ''");
         AddColumnIfMissing(connection, "Incident", "ResolutionNote", "ResolutionNote TEXT NOT NULL DEFAULT ''");
         AddColumnIfMissing(connection, "Incident", "IsExcepted", "IsExcepted INTEGER NOT NULL DEFAULT 0");
+        AddColumnIfMissing(connection, "RulePolicy", "Severity", "Severity TEXT NOT NULL DEFAULT ''");
         DropTableIfExists(connection, "IncidentException");
     }
 

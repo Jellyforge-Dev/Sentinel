@@ -916,6 +916,10 @@
                     var row = document.createElement('div');
                     row.className = 'sentinelRulePolicyRow';
 
+                    var dot = document.createElement('span');
+                    dot.className = 'sentinelSeverityDot sentinelSeverity' + rule.Severity.charAt(0).toUpperCase() + rule.Severity.slice(1);
+                    row.appendChild(dot);
+
                     var code = document.createElement('span');
                     code.className = 'sentinelRulePolicyCode';
                     code.textContent = humanizeRuleCode(rule.Code);
@@ -926,23 +930,46 @@
                     explanation.textContent = rule.Explanation || '';
                     row.appendChild(explanation);
 
-                    var select = document.createElement('select');
-                    select.setAttribute('is', 'emby-select');
-                    select.className = 'emby-select-withcolor emby-select';
+                    var actionSelect = document.createElement('select');
+                    actionSelect.setAttribute('is', 'emby-select');
+                    actionSelect.className = 'emby-select-withcolor emby-select';
 
                     [{ value: 'Notify', labelKey: 'UI_POLICY_NOTIFY' }, { value: 'Expected', labelKey: 'UI_POLICY_EXPECTED' }].forEach(function (option) {
                         var optionEl = document.createElement('option');
                         optionEl.value = option.value;
                         optionEl.textContent = getUiString(option.labelKey);
-                        select.appendChild(optionEl);
+                        actionSelect.appendChild(optionEl);
                     });
-                    select.value = rule.Action;
+                    actionSelect.value = rule.Action;
 
-                    select.addEventListener('change', function () {
-                        var url = ApiClient.getUrl('Sentinel/rules/' + encodeURIComponent(rule.Code) + '/policy');
-                        ApiClient.ajax({ type: 'POST', url: url, data: JSON.stringify({ Action: select.value }), contentType: 'application/json' }).then(loadIncidents);
+                    var severitySelect = document.createElement('select');
+                    severitySelect.setAttribute('is', 'emby-select');
+                    severitySelect.className = 'emby-select-withcolor emby-select';
+
+                    SEVERITY_LEVELS.forEach(function (level) {
+                        var optionEl = document.createElement('option');
+                        optionEl.value = level.value;
+                        optionEl.textContent = getUiString(level.labelKey);
+                        severitySelect.appendChild(optionEl);
                     });
-                    row.appendChild(select);
+                    severitySelect.value = rule.Severity;
+
+                    function savePolicy() {
+                        dot.className = 'sentinelSeverityDot sentinelSeverity' + severitySelect.value.charAt(0).toUpperCase() + severitySelect.value.slice(1);
+                        var url = ApiClient.getUrl('Sentinel/rules/' + encodeURIComponent(rule.Code) + '/policy');
+                        ApiClient.ajax({
+                            type: 'POST',
+                            url: url,
+                            data: JSON.stringify({ Action: actionSelect.value, Severity: severitySelect.value }),
+                            contentType: 'application/json'
+                        }).then(loadIncidents);
+                    }
+
+                    actionSelect.addEventListener('change', savePolicy);
+                    severitySelect.addEventListener('change', savePolicy);
+
+                    row.appendChild(severitySelect);
+                    row.appendChild(actionSelect);
 
                     return row;
                 }
