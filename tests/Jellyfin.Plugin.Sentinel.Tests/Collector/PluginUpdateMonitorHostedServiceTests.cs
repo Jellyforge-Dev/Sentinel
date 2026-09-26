@@ -31,10 +31,11 @@ public class PluginUpdateMonitorHostedServiceTests : IDisposable
         _notifiedPluginUpdateRepository = new NotifiedPluginUpdateRepository(_database);
     }
 
-    private static NotificationDispatcher CreateNotificationDispatcher() => new(
+    private NotificationDispatcher CreateNotificationDispatcher() => new(
         new Mock<IHttpClientFactory>().Object,
         NullLoggerFactory.Instance,
         new LocalizationService(),
+        new IncidentRepository(_database),
         NullLogger<NotificationDispatcher>.Instance);
 
     private PluginUpdateMonitorHostedService CreateService(

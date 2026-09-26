@@ -177,10 +177,11 @@ public class SentinelController : ControllerBase
 
     /// <summary>
     /// Gets every known diagnostic rule code together with its current admin-configured policy
-    /// ("Notify", the default, or "Expected") and its translated explanation — backs the
+    /// ("Notify", the default, or "Expected"), its effective severity (an admin override, or the
+    /// rule's own default derived from its confidence), and its translated explanation — backs the
     /// dashboard's rule-policy settings panel ("if: reason then: expected/notification").
     /// </summary>
-    /// <returns>Every known rule code with its Explanation and current Action.</returns>
+    /// <returns>Every known rule code with its Explanation, current Action, and effective Severity.</returns>
     [HttpGet("rules")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public ActionResult GetRules()
@@ -192,7 +193,8 @@ public class SentinelController : ControllerBase
         {
             rule.Code,
             Explanation = _localizationService.Translate($"{rule.Code}_EXPLANATION", language),
-            Action = expectedCodes.Contains(rule.Code) ? "Expected" : "Notify"
+            Action = expectedCodes.Contains(rule.Code) ? "Expected" : "Notify",
+            Severity = _incidentRepository.GetSeverityOverride(rule.Code) ?? NotificationSeverityMapper.FromConfidence(rule.Confidence)
         });
 
         return Ok(response);
@@ -200,16 +202,27 @@ public class SentinelController : ControllerBase
 
     /// <summary>
     /// Sets whether a diagnostic rule code is treated as "Expected" (suppressing future
-    /// notifications for it, server-wide) or "Notify" (the default).
+    /// notifications for it, server-wide) or "Notify" (the default), and its effective severity.
     /// </summary>
     /// <param name="code">The diagnostic rule code.</param>
-    /// <param name="request">The desired action ("Notify" or "Expected").</param>
+    /// <param name="request">The desired action ("Notify" or "Expected") and severity ("info"/"notice"/"warning"/"important"/"critical").</param>
     [HttpPost("rules/{code}/policy")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public ActionResult SetRulePolicy(string code, [FromBody] RulePolicyRequest request)
     {
         var expected = string.Equals(request?.Action, "Expected", StringComparison.OrdinalIgnoreCase);
-        _incidentRepository.SetRulePolicy(code, expected);
+        var rule = AllDiagnosticRules.All.FirstOrDefault(r => r.Code == code);
+        var defaultSeverity = rule is null ? null : NotificationSeverityMapper.FromConfidence(rule.Confidence);
+
+        // Only persist the severity as an explicit override when it differs from the rule's own
+        // default — matches SetRulePolicy's "empty means no override" contract, so a rule that was
+        // never actually customized doesn't grow a permanent RulePolicy row just because the
+        // dashboard always submits its currently-displayed (possibly still-default) severity.
+        var severityOverride = string.Equals(request?.Severity, defaultSeverity, StringComparison.OrdinalIgnoreCase)
+            ? null
+            : request?.Severity;
+
+        _incidentRepository.SetRulePolicy(code, expected, severityOverride);
         return Ok();
     }
 
@@ -309,4 +322,7 @@ public sealed class RulePolicyRequest
 {
     /// <summary>Gets or sets the desired action: "Notify" or "Expected".</summary>
     public string? Action { get; set; }
+
+    /// <summary>Gets or sets the desired severity: "info"/"notice"/"warning"/"important"/"critical".</summary>
+    public string? Severity { get; set; }
 }

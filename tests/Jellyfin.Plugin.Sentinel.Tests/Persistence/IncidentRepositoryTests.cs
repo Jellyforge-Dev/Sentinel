@@ -165,6 +165,40 @@ public class IncidentRepositoryTests : IDisposable
     }
 
     [Fact]
+    public void GetSeverityOverride_ReturnsNull_WhenNoOverrideIsSet()
+    {
+        Assert.Null(_incidentRepository.GetSeverityOverride("BUFFERING"));
+    }
+
+    [Fact]
+    public void SetRulePolicy_PersistsSeverityOverride_IndependentlyOfAction()
+    {
+        _incidentRepository.SetRulePolicy("BUFFERING", expected: false, severityOverride: "critical");
+
+        Assert.Equal("critical", _incidentRepository.GetSeverityOverride("BUFFERING"));
+        Assert.False(_incidentRepository.IsCodeExpected("BUFFERING"));
+    }
+
+    [Fact]
+    public void SetRulePolicy_ClearsSeverityOverride_WhenCalledWithNullAndNotExpected()
+    {
+        _incidentRepository.SetRulePolicy("BUFFERING", expected: false, severityOverride: "critical");
+
+        _incidentRepository.SetRulePolicy("BUFFERING", expected: false, severityOverride: null);
+
+        Assert.Null(_incidentRepository.GetSeverityOverride("BUFFERING"));
+    }
+
+    [Fact]
+    public void SetRulePolicy_KeepsSeverityOverride_WhenCodeIsAlsoMarkedExpected()
+    {
+        _incidentRepository.SetRulePolicy("BUFFERING", expected: true, severityOverride: "notice");
+
+        Assert.True(_incidentRepository.IsCodeExpected("BUFFERING"));
+        Assert.Equal("notice", _incidentRepository.GetSeverityOverride("BUFFERING"));
+    }
+
+    [Fact]
     public void SetRulePolicy_MakesIsCodeExpectedTrue_ForThatCode_ButNotForOtherCodes()
     {
         Assert.False(_incidentRepository.IsCodeExpected("BUFFERING"));
